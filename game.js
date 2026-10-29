@@ -5171,6 +5171,131 @@ function upShopPatch(){
 }
 var upGr=gr;
 gr=function(o){if(it&&it.up){if(it.up.xp===undefined)it.up.xp=0;if(it.up.bls===undefined)it.up.bls=0;if(!it.upSub)it.upSub={dmg:0,hp:0}}upGr.apply(this,arguments);try{upShopPatch()}catch(e){}};
+/* ===== 적 다양성 (자체 설계): 기존 KayKit CC0 모델 4종의 색/형태 변형 + 고유 행동 패턴. 외형 변형 6종(색+비율), 행동 6종, 보스 4체제 순환. 저장 스키마 변경 없음 ===== */
+var EN_TYPES={
+  berserker:{name:"\uD574\uACE8 \uAD11\uC804\uC0AC",model:"skel_warrior",tint:0xff6248,scale:1.12,hp:1.9,dmg:1.2,int:2.4,sp:"haste"},
+  warden:{name:"\uD574\uACE8 \uC218\uD638\uC790",model:"skel_warrior",tint:0x4f9fff,scale:1.18,hp:2.1,dmg:.9,int:3,sp:"barrier"},
+  venom:{name:"\uD574\uACE8 \uB3C5\uC220\uC0AC",model:"skel_mage",tint:0x66d24a,scale:1,hp:1,dmg:.9,int:2.9,sp:"venom"},
+  vampire:{name:"\uD574\uACE8 \uD761\uD608\uADC0",model:"skel_rogue",tint:0xb45fd0,scale:1.05,hp:1.1,dmg:1,int:1.9,sp:"leech"},
+  bomber:{name:"\uD574\uACE8 \uD3ED\uBC1C\uBCD1",model:"skel_minion",tint:0xffa235,scale:.92,hp:.8,dmg:.8,int:1.7,sp:"burst"},
+  splitter:{name:"\uD574\uACE8 \uBD84\uC5F4\uCCB4",model:"skel_minion",tint:0x4fc9ab,scale:1.2,hp:1.6,dmg:.7,int:2.4,sp:"split"}
+};
+var EN_BOSS=[
+  {name:"\uD574\uACE8 \uAD70\uC8FC",model:"skel_warrior",tint:null,scale:1.45,hp:7,dmg:1.7,int:2.5,sp:null},
+  {name:"\uC2EC\uC5F0 \uB300\uB9C8\uBC95\uC0AC",model:"skel_mage",tint:0x8a68ff,scale:1.5,hp:6,dmg:2.1,int:3.2,sp:"scorch"},
+  {name:"\uBB34\uB364\uC758 \uAC70\uC2E0",model:"skel_warrior",tint:0x8a909a,scale:1.9,hp:11,dmg:1.5,int:3.4,sp:"barrier"},
+  {name:"\uADF8\uB9BC\uC790 \uC554\uC0B4\uC655",model:"skel_rogue",tint:0x4a4a5a,scale:1.5,hp:5,dmg:1.6,int:1.7,sp:"shadow"}
+];
+var enSeed=987654321;
+function enRnd(){enSeed=(enSeed*1103515245+12345)&0x7fffffff;return enSeed/0x7fffffff}
+function enApplyType(r,F,o,t){
+  var sc=Math.pow(1.24,Math.min(o,30)-1)*Math.pow(1.2,Math.max(0,o-30))*(1+.03*t);
+  r.name=F.name;r.model=F.model;r.scale=F.scale;r.tint=F.tint;r.sp=F.sp||null;
+  r.maxHp=r.hp=Math.max(1,Math.round(17*sc*F.hp));
+  r.dmg=Math.max(1,Math.round(4.6*Math.pow(1.165,Math.min(o,30)-1)*Math.pow(1.12,Math.max(0,o-30))*F.dmg*10)/10);
+  r.int=F.int;r.atkT=F.int*.7;r.baseInt=F.int;
+  if(F.sp==="barrier")r.eguard=Math.round(r.maxHp*(r.boss?.5:.35));
+  if(F.sp==="split"){r.splitLeft=2}
+  return r;
+}
+var enNf=nf;
+nf=function(o,t,e){
+  var r=enNf(o,t,e);
+  try{
+    if(window.__enForce&&EN_TYPES[window.__enForce]){enApplyType(r,EN_TYPES[window.__enForce],o,t)}
+    else if(window.__enForce&&window.__enForce.indexOf("boss")===0){var bi=parseInt(window.__enForce.slice(4))||0;enApplyType(r,EN_BOSS[bi],o,t);r.boss=true}
+    else if(r.boss){var idx=(Math.max(1,Math.round(o/5))-1)%4;enApplyType(r,EN_BOSS[idx],o,t);r.boss=true}
+    else if(o>=3&&enRnd()<.34){var ks=Object.keys(EN_TYPES);enApplyType(r,EN_TYPES[ks[Math.floor(enRnd()*ks.length)]],o,t)}
+  }catch(_){}
+  window.__enTint=r.tint||null;
+  return r;
+};
+/* 행동 훅: 가속(체력 감소시 공격 간격 단축) / 플레이어 지속피해(독·화상) */
+var enFight=la.prototype.fight;
+la.prototype.fight=function(t){
+  var e=this.enemy;
+  if(e&&(e.sp==="haste"||e.sp==="shadow"))e.int=e.baseInt*(.5+.5*Math.max(0,e.hp)/e.maxHp);
+  if(this.heroDots&&this.heroDots.length){
+    this.hdT=(this.hdT||0)+t;
+    for(;this.hdT>=1;){
+      this.hdT-=1;var n=0,kd="";
+      for(var i=0;i<this.heroDots.length;i++){var d=this.heroDots[i];n+=d.v;d.t--;kd=d.k}
+      this.heroDots=this.heroDots.filter(function(d){return d.t>0});
+      if(n>0){
+        n=Math.max(1,Math.round(n));
+        var g=Math.min(this.guard,n);this.guard-=g;n-=g;this.hp-=n;
+        this.emit("hurt",n,g);
+        this.say((kd==="burn"?"\uD654\uC0C1":"\uC911\uB3C5")+" \uD53C\uD574 "+(n+g));
+        if(this.hp<=0){this.hp=0;this.phase="dead";this.emit("dead");this.say("\uC4F0\uB7EC\uC84C\uC2B5\uB2C8\uB2E4.");return}
+      }
+    }
+  }
+  enFight.call(this,t);
+};
+/* 행동 훅: 독/화상 부여, 흡혈, 연속 공격 */
+var enHit=la.prototype.enemyHit;
+la.prototype.enemyHit=function(){
+  var e=this.enemy,sp=e&&e.sp;
+  enHit.apply(this,arguments);
+  if(!e||this.phase!=="fight")return;
+  if(sp==="venom"){this.heroDots=this.heroDots||[];this.heroDots.push({v:Math.max(1,Math.round(e.dmg*.3)),t:4,k:"poison"});this.say(e.name+"\uC758 \uB3C5\uC5D0 \uC911\uB3C5!")}
+  else if(sp==="scorch"){this.heroDots=this.heroDots||[];this.heroDots.push({v:Math.max(1,Math.round(e.dmg*.4)),t:3,k:"burn"});this.say(e.name+"\uC758 \uD654\uC5FC\uC5D0 \uD654\uC0C1!")}
+  else if(sp==="leech"){var h=Math.max(1,Math.round(e.dmg*.5));e.hp=Math.min(e.maxHp,e.hp+h);this.say(e.name+"\uC774 \uC0DD\uBA85\uB825 "+h+" \uD761\uC218")}
+  else if(sp==="shadow"&&enRnd()<.55){this.say(e.name+"\uC758 \uC5F0\uC18D \uACF5\uACA9!");enHit.apply(this,arguments)}
+};
+/* 행동 훅: 결계(가드) 흡수 */
+var enHurt=la.prototype.hurtEnemy;
+la.prototype.hurtEnemy=function(t,e,n,i){
+  var a=this.enemy;
+  if(a&&a.eguard>0&&t>0){
+    t=Math.max(1,Math.round(t));
+    var ab=Math.min(a.eguard,t);a.eguard-=ab;t-=ab;
+    this.say("\uACB0\uACC4\uAC00 "+ab+" \uD53C\uD574\uB97C \uD761\uC218");
+    this.emit("dmg",ab,e,n,i);
+    if(t<=0)return;
+  }
+  enHurt.call(this,t,e,n,i);
+};
+/* 행동 훅: 폭발, 분열 */
+var enKill=la.prototype.kill;
+la.prototype.kill=function(){
+  var e=this.enemy,sp=e&&e.sp,sl=e&&e.splitLeft;
+  enKill.apply(this,arguments);
+  if(this.phase!=="loot")return;
+  if(sp==="burst"){
+    var d=Math.max(1,Math.round(this.maxHp*.12));
+    var g=Math.min(this.guard,d);this.guard-=g;d-=g;this.hp-=d;
+    this.emit("hurt",d,g);
+    this.say(e.name+" \uD3ED\uBC1C! "+(d+g)+" \uD53C\uD574");
+    if(this.hp<=0){this.hp=0;this.phase="dead";this.emit("dead");this.say("\uC4F0\uB7EC\uC84C\uC2B5\uB2C8\uB2E4.");return}
+  }
+  if(sp==="split"&&sl>0){
+    var c={type:"minion",name:e.name+" \uC791\uC740 \uC878\uBCD1",model:e.model,scale:e.scale*.62,tint:e.tint,boss:false,
+      hp:Math.max(1,Math.round(e.maxHp*.4)),maxHp:Math.max(1,Math.round(e.maxHp*.4)),dmg:Math.max(1,Math.round(e.dmg*.6)),
+      int:e.baseInt||e.int,atkT:(e.baseInt||e.int)*.7,baseInt:e.baseInt||e.int,sp:"split",splitLeft:sl-1,poison:[],burn:null,stun:0};
+    this.enemy=c;this.phase="spawn";this.t=.9;
+    this.emit("spawn",c);
+    this.say(e.name+"\uC774(\uAC00) \uBD84\uC5F4\uD588\uC2B5\uB2C8\uB2E4!");
+  }
+};
+/* 렌더 색상 변형: 스폰 직후 재질 색을 곱함 */
+try{
+  var enSetEnemy=ee.setEnemy.bind(ee);
+  ee.setEnemy=function(m,sc,b){
+    enSetEnemy(m,sc,b);
+    try{
+      var tn=window.__enTint;
+      if(tn&&ee.enemyObj)ee.enemyObj.traverse(function(r){if(r.isMesh&&r.material&&r.material.color)r.material.color.multiply(new _t(tn))});
+    }catch(_){}
+  };
+}catch(_){}
+(function enEx(){
+  if(window.__game){
+    window.__game.enTypes=function(){return Object.keys(EN_TYPES)};
+    window.__game.enBosses=function(){return EN_BOSS.map(function(b){return b.name})};
+    window.__game.enForce=function(k){window.__enForce=k};
+  }else setTimeout(enEx,150);
+})();
 /* 검증용 노출 */
 (function upEx(){
   if(window.__game){window.__game.upTier=upTier;window.__game.upMods=function(){return Do(it)};window.__game.endRun=function(o){P3(o)};window.__game.fmtG=fmtG}
