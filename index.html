@@ -171,6 +171,16 @@ body.hubm #panel{min-height:100dvh}
 .rlseg button{font:inherit;font-size:12px;color:var(--dim);background:#141021;border:1px solid var(--line);border-radius:9px;padding:4px 10px;cursor:pointer;touch-action:manipulation}
 .rlseg button.on{color:#15111f;background:var(--gold);border-color:var(--gold);font-weight:800}
 .rlwhy2{font-size:11.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+.rcstat{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.rcstat span{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:5px 9px;font-size:12px;color:var(--dim)}
+.rcstat b{color:var(--gold)}
+.rcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px;margin:6px 0}
+.rca{background:rgba(29,23,48,.55);border:1px solid var(--line);border-radius:10px;padding:7px 8px;text-align:center;opacity:.55}
+.rca.on{opacity:1;border-color:var(--gold);background:rgba(58,44,18,.5)}
+.rci{font-size:20px}
+.rcn{font-size:12px;font-weight:700;margin-top:2px}
+.rca.on .rcn{color:var(--gold)}
+.rcd{font-size:10.5px;color:var(--dim);margin-top:1px;line-height:1.3}
 </style>
 </head>
 <body>
@@ -206,6 +216,6 @@ body.hubm #panel{min-height:100dvh}
  </section>
 </div>
 <div id="ghost"></div><div id="toast"></div>
-<script src="game.js?v=17"></script>
+<script src="game.js?v=18"></script>
 </body>
 </html>

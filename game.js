@@ -4941,6 +4941,72 @@ function rlHub(){
   }else setTimeout(rlEx,150);
 })();
 
+
+/* ===== 기록/업적 (자체 설계): 거점에서 전적과 업적을 보여 주는 수집 콘텐츠. 저장은 it.records 필드 추가만 — 없는 옛 저장은 자동 초기화 ===== */
+var RC_ACH=[
+  {id:"f10",icon:"🕳️",name:"첫 발자국",desc:"지하 10층 도달",ck:function(c){return c.best>=10}},
+  {id:"f25",icon:"🗺️",name:"미궁 탐험가",desc:"지하 25층 도달",ck:function(c){return c.best>=25}},
+  {id:"f50",icon:"⚔️",name:"심연 개척자",desc:"지하 50층 도달",ck:function(c){return c.best>=50}},
+  {id:"f75",icon:"🔥",name:"불길 속으로",desc:"지하 75층 도달",ck:function(c){return c.best>=75}},
+  {id:"f100",icon:"👑",name:"미궁의 지배자",desc:"지하 100층 도달",ck:function(c){return c.best>=100}},
+  {id:"b10",icon:"💀",name:"보스 사냥꾼",desc:"보스 10회 처치",ck:function(c){return c.bossKills>=10}},
+  {id:"b50",icon:"🏹",name:"보스 학살자",desc:"보스 50회 처치",ck:function(c){return c.bossKills>=50}},
+  {id:"m100",icon:"🔗",name:"합성 달인",desc:"합성 100회",ck:function(c){return c.merges>=100}},
+  {id:"m500",icon:"🧬",name:"합성의 화신",desc:"합성 500회",ck:function(c){return c.merges>=500}},
+  {id:"z10",icon:"⚒️",name:"대장장이",desc:"융합 10회",ck:function(c){return c.fusions>=10}},
+  {id:"z50",icon:"🔨",name:"명장",desc:"융합 50회",ck:function(c){return c.fusions>=50}},
+  {id:"r6",icon:"🏺",name:"유물 수집가",desc:"유물 6종 보유",ck:function(c){return c.relicKinds>=6}},
+  {id:"r14",icon:"🌟",name:"유물 완성",desc:"유물 14종 모두 보유",ck:function(c){return c.relicKinds>=14}},
+  {id:"g1m",icon:"💰",name:"미궁의 부자",desc:"금화 1,000,000 보유",ck:function(c){return c.gold>=1000000}},
+  {id:"l50",icon:"🎖️",name:"베테랑 영웅",desc:"영웅 Lv 50 달성",ck:function(c){return c.heroLv>=50}},
+  {id:"d1",icon:"💫",name:"첫 좌절",desc:"첫 번째 쓰러짐 (쓰러져도 성장은 남습니다)",ck:function(c){return c.deaths>=1}}
+];
+function rcInit(){it.records=it.records||{bossKills:0,ach:{}}}
+rcInit();
+function rcCtx(){rcInit();var kinds=0;for(var i=0;i<RL_ALL.length;i++)if(rlCount(RL_ALL[i].id)>0)kinds++;
+  return {best:it.best,bossKills:it.records.bossKills,merges:it.stats.merges,fusions:it.stats.fusions||0,relicKinds:kinds,gold:it.gold,heroLv:it.hero.lv,deaths:it.stats.deaths,runs:it.stats.runs,kills:it.stats.kills}}
+function rcCheck(){
+  rcInit();var c=rcCtx(),newly=[];
+  RC_ACH.forEach(function(a){if(!it.records.ach[a.id]&&a.ck(c)){it.records.ach[a.id]=true;newly.push(a)}});
+  if(newly.length){uo();newly.forEach(function(a,i){ae.levelup();rn("🏅 업적 달성! "+a.icon+" "+a.name+" — "+a.desc,3500)})}
+}
+/* 보스 처치 집계: spawn에서 보스 여부를 기억했다가 kill 때 반영 */
+var rcBoss=false;
+var rcE4=E4;
+E4=function(o,t,e,n,i){
+  var r=rcE4.apply(this,arguments);
+  if(o==="spawn")rcBoss=!!(t&&t.boss);
+  if(o==="kill"){if(rcBoss){rcInit();it.records.bossKills++;rcBoss=false}rcCheck()}
+  if(o==="floor"||o==="levelup")rcCheck();
+  return r;
+};
+/* 거점 표시: 전적 + 업적 그리드 (유물 섹션 뒤에 이어 붙임) */
+var rcGr=gr;
+gr=function(o){rcGr.apply(this,arguments);rcHub()};
+function rcHub(){
+  rcInit();rcCheck();
+  var t=Et("hub");if(!t)return;
+  var c=rcCtx();
+  var h='<h2 style="margin-top:12px">기록 <small>누적 전적과 업적 · 업적은 영구 보존됩니다</small></h2>';
+  h+='<div class="rcstat">'
+    +'<span>최고 <b>'+c.best+'층</b></span><span>런 <b>'+c.runs+'</b></span><span>처치 <b>'+c.kills+'</b></span>'
+    +'<span>보스 처치 <b>'+c.bossKills+'</b></span><span>합성 <b>'+c.merges+'</b></span><span>융합 <b>'+c.fusions+'</b></span>'
+    +'<span>유물 <b>'+c.relicKinds+'/14종</b></span><span>쓰러짐 <b>'+c.deaths+'</b></span></div>';
+  h+='<div class="rcgrid">';
+  RC_ACH.forEach(function(a){
+    var on=!!it.records.ach[a.id];
+    h+='<div class="rca'+(on?' on':'')+'"><div class="rci">'+(on?a.icon:'🔒')+'</div><div class="rcn">'+a.name+'</div><div class="rcd">'+a.desc+'</div></div>';
+  });
+  h+='</div>';
+  t.insertAdjacentHTML("beforeend",h);
+}
+/* 검증용 노출 */
+(function rcEx(){
+  if(window.__game){
+    window.__game.recordsInfo=function(){rcInit();return {bossKills:it.records.bossKills,ach:Object.keys(it.records.ach),ctx:rcCtx()}};
+  }else setTimeout(rcEx,150);
+})();
+
 L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});})();
 /*! Bundled license information:
 
