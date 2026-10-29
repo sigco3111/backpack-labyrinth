@@ -4750,6 +4750,137 @@ x3=function(){
   }
 };
 
+
+/* ===== 유물 시스템 (자체 설계): 5층마다 보스를 쓰러뜨리면(6·11·16…층 진입 시점) 유물 3개 중 1개를 고르는 영구 성장 선택지. 장비 Lv·강화와 별개의 선택 축. 저장은 it.relics 필드 추가만 — 없는 옛 저장은 자동 초기화 ===== */
+var RL_POOL=[
+  {id:"horn",dir:"공격",icon:"🗡️",name:"광전사의 뿔피리",desc:"모든 피해 +12%",max:3,m:{dmg:.12}},
+  {id:"eye",dir:"공격",icon:"🎯",name:"급소의 눈",desc:"치명타 확률 +8%p (치명타는 1.7배 피해)",max:2,m:{crit:.08}},
+  {id:"gale",dir:"공격",icon:"💨",name:"질풍의 매듭",desc:"공격 속도 +10%",max:2,m:{speed:.10}},
+  {id:"seed",dir:"생존",icon:"🌱",name:"생명의 씨앗",desc:"최대 체력 +10%",max:3,hpMul:.10},
+  {id:"aegis",dir:"생존",icon:"🛡️",name:"성좌의 방벽",desc:"보호막 한도 +25%",max:2,m:{guardCap:.25}},
+  {id:"hide",dir:"생존",icon:"🪨",name:"바위 가죽",desc:"받는 피해 -8%",max:2,m:{take:.08}},
+  {id:"spring",dir:"생존",icon:"💧",name:"생명수 방울",desc:"회복 효과 +20%",max:2,m:{heal:.20}},
+  {id:"echo",dir:"생존",icon:"🔔",name:"전승의 종소리",desc:"적 처치 후 회복 +4%p (최대 체력 기준)",max:2,m:{postHeal:.04}},
+  {id:"tidy",dir:"배치",icon:"🧲",name:"정리광의 자",desc:"인접 보너스 효과 +25%",max:2,adjMul:.25},
+  {id:"widen",dir:"배치",icon:"📐",name:"넓은 안목",desc:"기본 장비 인접 보너스 상한 +10%p",max:2,adjCap:10},
+  {id:"satchel",dir:"배치",icon:"🎒",name:"넉넉한 보관함",desc:"보관함 +2줄",max:1,m:{inv:1}},
+  {id:"palm",dir:"배치",icon:"🪙",name:"황금 손바닥",desc:"골드 획득 +25%",max:2,m:{gold:.25}},
+  {id:"snout",dir:"배치",icon:"🍀",name:"탐욕의 돼지코",desc:"추가 전리품 확률 +15%p",max:2,m:{drop:.15}},
+  {id:"lens",dir:"배치",icon:"🔍",name:"감정가의 렌즈",desc:"전리품 Lv +1",max:1,m:{lootLv:1}}
+];
+var RL_FALL=[
+  {id:"whet",dir:"공통",icon:"⚔️",name:"숫돌",desc:"모든 피해 +5%",max:99,m:{dmg:.05}},
+  {id:"tonic",dir:"공통",icon:"🧪",name:"강장제",desc:"최대 체력 +5%",max:99,hpMul:.05},
+  {id:"cache",dir:"공통",icon:"📦",name:"보급 궤짝",desc:"즉시 골드 +400",max:99,goldNow:400}
+];
+var RL_ALL=RL_POOL.concat(RL_FALL);
+function rlInit(){it.relics=it.relics||{owned:{},claimed:{}}}
+rlInit();
+function rlCount(id){return (it.relics&&it.relics.owned[id])||0}
+function rlMod(k){var s=0;for(var i=0;i<RL_ALL.length;i++){var r=RL_ALL[i];if(r.m&&r.m[k])s+=r.m[k]*rlCount(r.id)}return s}
+function rlHpMul(){var s=0;for(var i=0;i<RL_ALL.length;i++)if(RL_ALL[i].hpMul)s+=RL_ALL[i].hpMul*rlCount(RL_ALL[i].id);return s}
+function rlAdjMul(){var s=1;for(var i=0;i<RL_ALL.length;i++)if(RL_ALL[i].adjMul)s*=1+RL_ALL[i].adjMul*rlCount(RL_ALL[i].id);return s}
+function rlApplyCaps(){ADJ_CAP=30+10*rlCount("widen");adjKey=null}
+rlApplyCaps();
+/* 효과 후크: Do(강화 합산) · sa(최대 체력) · adjM(인접 배수) — 전투·융합 미리보기·거점 표시가 모두 같은 경로를 쓰므로 설명과 동작이 항상 일치 */
+var rlDo=Do;
+Do=function(o){var m=rlDo(o);if(o===it){var ks=["dmg","crit","speed","take","guardCap","heal","postHeal","gold","drop","lootLv","inv"];for(var i=0;i<ks.length;i++)m[ks[i]]+=rlMod(ks[i])}return m};
+var rlSa=sa;
+sa=function(o){var v=rlSa(o);if(o===it)v=Math.round(v*(1+rlHpMul()));return v};
+var rlAdjM=adjM;
+adjM=function(sv,J){var v=rlAdjM(sv,J);return sv===it&&v>1?v*rlAdjMul():v};
+/* 진행 후크: 층 진입(E4 floor 이벤트) · 런 시작(O3, 이미 지나간 이정표 소급) · 선택 중 전투 일시정지(la.update) */
+var RLQ=[],RL_PAUSE=false,RL_SEL=null;
+function rlEnqueue(f){rlInit();if(RLQ.indexOf(f)<0&&!it.relics.claimed[f])RLQ.push(f)}
+function rlMaybe(){if(RL_PAUSE||!RLQ.length||li!=="run")return;rlOpen(RLQ[0])}
+var rlE4=E4;
+E4=function(o,t,e,n,i){
+  var r=rlE4.apply(this,arguments);
+  if(o==="floor"){if(t>=6&&(t-1)%5===0)rlEnqueue(t);rlMaybe()}
+  return r;
+};
+var rlO3=O3;
+O3=function(){
+  rlO3.apply(this,arguments);
+  if(Xe)for(var M=6;M<=Xe.floor;M+=5)rlEnqueue(M);
+  rlMaybe();
+};
+var rlUpd=la.prototype.update;
+la.prototype.update=function(t){if(RL_PAUSE)return;rlUpd.call(this,t)};
+/* 선택 화면: 카드 탭 → 확인 버튼 2단계 (번복 불가 선택이라 오탭 방지) */
+var rlmEl=document.createElement("div");rlmEl.id="rlm";document.body.appendChild(rlmEl);
+var RL_DIRC={"공격":"atk","생존":"sus","배치":"plc","공통":"plc"};
+function rlChoices(){
+  var avail=RL_POOL.filter(function(r){return rlCount(r.id)<r.max});
+  for(var i=avail.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=avail[i];avail[i]=avail[j];avail[j]=t}
+  var pick=avail.slice(0,3),k=pick.length;
+  while(pick.length<3)pick.push(RL_FALL[(k+pick.length)%RL_FALL.length]);
+  return pick;
+}
+function rlOpen(f){
+  RL_PAUSE=true;RL_SEL=null;
+  var ch=rlChoices();
+  var h='<div class="rlbox"><h3>🏺 지하 '+(f-1)+'층 보스 격파!</h3><div class="rlsub">유물 하나를 선택하세요 · 영구 적용 · 선택이 성장 방향을 정합니다</div><div class="rlcards">';
+  ch.forEach(function(r,ix){
+    var c=rlCount(r.id);
+    h+='<div class="rlc" data-ix="'+ix+'"><div class="ri">'+r.icon+'</div><div class="rn2">'+r.name+'</div><div class="rd">'+r.desc+'</div><div><span class="rt '+RL_DIRC[r.dir]+'">'+r.dir+'</span></div>'+(c?'<div class="rst">보유 '+c+'/'+(r.max>=99?"∞":r.max)+' · 중첩 시 합산</div>':'')+'</div>';
+  });
+  h+='</div><div class="rlbtns"><button class="btn pri" id="rlOk" disabled>유물을 고르세요</button></div></div>';
+  rlmEl.innerHTML=h;rlmEl.classList.add("on");
+  var cards=rlmEl.querySelectorAll(".rlc");
+  cards.forEach(function(el){
+    el.onclick=function(){
+      cards.forEach(function(x){x.classList.remove("sel")});
+      el.classList.add("sel");
+      RL_SEL=ch[+el.dataset.ix];
+      var b=Et("rlOk");b.disabled=false;b.textContent=RL_SEL.icon+" "+RL_SEL.name+" 선택";
+      ae.pick();
+    };
+  });
+  Et("rlOk").onclick=function(){rlConfirm()};
+}
+function rlConfirm(){
+  if(!RL_SEL||!RLQ.length)return;
+  var f=RLQ.shift(),r=RL_SEL;RL_SEL=null;
+  it.relics.claimed[f]=true;
+  it.relics.owned[r.id]=rlCount(r.id)+1;
+  if(r.goldNow)it.gold+=r.goldNow;
+  rlApplyCaps();
+  if(Xe){Xe.mods=Do(it);var nm=sa(it);if(nm>Xe.maxHp)Xe.hp+=nm-Xe.maxHp;Xe.maxHp=nm;if(Xe.hp>nm)Xe.hp=nm}
+  rlmEl.classList.remove("on");rlmEl.innerHTML="";
+  RL_PAUSE=false;
+  ae.levelup();
+  rn("유물 획득! "+r.icon+" "+r.name+" — "+r.desc,3000);
+  pa();
+  rlMaybe();
+}
+/* 거점 허브에 보유 유물 목록 + 다음 유물 조건 */
+var rlGr=gr;
+gr=function(o){rlGr.apply(this,arguments);rlHub()};
+function rlHub(){
+  rlInit();
+  var t=Et("hub");if(!t)return;
+  var owned=RL_ALL.filter(function(r){return rlCount(r.id)>0});
+  var M=6;while(it.relics.claimed[M])M+=5;
+  var h='<h2 style="margin-top:12px">유물 <small>5층마다 보스를 쓰러뜨리면 3개 중 하나를 고릅니다 · 영구 적용</small></h2>';
+  if(owned.length){
+    h+='<div id="rlown">';
+    owned.forEach(function(r){var c=rlCount(r.id);h+='<span class="rlchip">'+r.icon+' '+r.name+(c>1?' ×'+c:'')+'<i>'+r.desc+'</i></span>'});
+    h+='</div>';
+  }else h+='<div class="card" style="color:var(--dim);font-size:12.5px">아직 얻은 유물이 없습니다. 지하 5층 보스를 쓰러뜨리면 첫 유물을 고를 수 있습니다.</div>';
+  h+='<div class="legend" style="margin-top:2px">다음 유물: 지하 '+(M-1)+'층 보스 격파 시 (최고 기록 지하 '+it.best+'층) · 이정표는 층별 1회 · 이미 돌파한 층의 유물은 다음 런 시작 때 소급 지급</div>';
+  t.insertAdjacentHTML("beforeend",h);
+}
+/* 검증용 노출 */
+(function rlEx(){
+  if(window.__game){
+    window.__game.relicInfo=function(){return JSON.parse(JSON.stringify(it.relics))};
+    window.__game.modsNow=function(){return Do(it)};
+    window.__game.maxHpNow=function(){return sa(it)};
+    window.__game.rlQueue=function(){return RLQ.slice()};
+  }else setTimeout(rlEx,150);
+})();
+
 L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});})();
 /*! Bundled license information:
 

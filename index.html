@@ -137,6 +137,28 @@ body.hubm #stage{display:none}
 body.hubm #panel{min-height:100dvh}
 @media (max-width:899px),(orientation:portrait){:root{--c:40px}#app{grid-template-rows:minmax(220px,37dvh) 1fr}#sidebox .row{flex-direction:column}#sidebox .row .btn{width:100%}#sidebox .legend{display:none}#boardrow{gap:8px}.card{padding:6px 8px}}
 @media (max-width:370px){:root{--c:36px}}
+#rlm{position:fixed;inset:0;z-index:80;background:rgba(6,4,12,.87);display:none;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)}
+#rlm.on{display:flex}
+.rlbox{width:min(100%,540px);max-height:94dvh;overflow-y:auto;background:linear-gradient(#1d1730,#15111f);border:1px solid var(--gold);border-radius:14px;padding:14px 14px 16px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.rlbox h3{margin:0 0 3px;color:var(--gold);font-size:18px;text-align:center}
+.rlsub{text-align:center;color:var(--dim);font-size:12px;margin-bottom:11px}
+.rlcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.rlc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 8px 10px;text-align:center;cursor:pointer;font-size:12.5px;line-height:1.5;touch-action:manipulation}
+.rlc:active{transform:translateY(1px)}
+.rlc.sel{border-color:var(--gold);box-shadow:0 0 14px rgba(242,198,107,.5);background:#2a2110}
+.rlc .ri{font-size:32px;line-height:1.25}
+.rlc .rn2{font-weight:800;margin:5px 0 2px}
+.rlc .rd{font-size:12px}
+.rlc .rt{display:inline-block;font-size:10.5px;padding:1px 8px;border-radius:8px;border:1px solid var(--line);margin-top:6px;color:var(--dim)}
+.rlc .rt.atk{color:#ff9a8a;border-color:#6b3530}
+.rlc .rt.sus{color:#8fd8a0;border-color:#2f5238}
+.rlc .rt.plc{color:var(--gold);border-color:#6b5a2a}
+.rlc .rst{color:var(--dim);font-size:10.5px;margin-top:4px}
+.rlbtns{margin-top:12px}
+.rlbtns .btn{width:100%;padding:12px;font-size:15px}
+#rlown{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.rlchip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:5px 9px;font-size:12px}
+.rlchip i{display:block;font-style:normal;color:var(--dim);font-size:11px}
 </style>
 </head>
 <body>
@@ -172,6 +194,6 @@ body.hubm #panel{min-height:100dvh}
  </section>
 </div>
 <div id="ghost"></div><div id="toast"></div>
-<script src="game.js?v=15"></script>
+<script src="game.js?v=16"></script>
 </body>
 </html>
