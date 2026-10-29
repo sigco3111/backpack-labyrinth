@@ -4915,8 +4915,8 @@ function rlHub(){
     +["균형","공격","생존","배치"].map(function(d){return '<button data-v="'+d+'" class="'+(pref===d?"on":"")+'">'+d+'</button>'}).join("")
     +'</span></div>'
     +'<div class="rlwhy2">'+(mode==="auto"
-      ? "보상이 뜨면 멈추지 않고 '"+pref+"' 방향 추천 유물을 자동으로 고르고, 고른 결과를 알림으로 보여 줍니다"
-      : "보상마다 멈추고 직접 고릅니다 · 추천 유물과 추천 이유를 함께 보여 줍니다")+'</div></div>';
+      ? "유물·갈림길이 뜨면 멈추지 않고 '"+pref+"' 방향 추천을 자동으로 고르고, 고른 결과를 알림으로 보여 줍니다"
+      : "유물·갈림길마다 멈추고 직접 고릅니다 · 추천과 추천 이유를 함께 보여 줍니다")+'</div></div>';
   if(owned.length){
     h+='<div id="rlown">';
     owned.forEach(function(r){var c=rlCount(r.id);h+='<span class="rlchip">'+r.icon+' '+r.name+(c>1?' ×'+c:'')+'<i>'+r.desc+'</i></span>'});
@@ -4959,12 +4959,14 @@ var RC_ACH=[
   {id:"r14",icon:"🌟",name:"유물 완성",desc:"유물 14종 모두 보유",ck:function(c){return c.relicKinds>=14}},
   {id:"g1m",icon:"💰",name:"미궁의 부자",desc:"금화 1,000,000 보유",ck:function(c){return c.gold>=1000000}},
   {id:"l50",icon:"🎖️",name:"베테랑 영웅",desc:"영웅 Lv 50 달성",ck:function(c){return c.heroLv>=50}},
+  {id:"c1",icon:"🧭",name:"갈림길의 여행자",desc:"갈림길 첫 선택",ck:function(c){return c.cr>=1}},
+  {id:"c25",icon:"🛤️",name:"길 위의 현자",desc:"갈림길 25회 선택",ck:function(c){return c.cr>=25}},
   {id:"d1",icon:"💫",name:"첫 좌절",desc:"첫 번째 쓰러짐 (쓰러져도 성장은 남습니다)",ck:function(c){return c.deaths>=1}}
 ];
 function rcInit(){it.records=it.records||{bossKills:0,ach:{}}}
 rcInit();
 function rcCtx(){rcInit();var kinds=0;for(var i=0;i<RL_ALL.length;i++)if(rlCount(RL_ALL[i].id)>0)kinds++;
-  return {best:it.best,bossKills:it.records.bossKills,merges:it.stats.merges,fusions:it.stats.fusions||0,relicKinds:kinds,gold:it.gold,heroLv:it.hero.lv,deaths:it.stats.deaths,runs:it.stats.runs,kills:it.stats.kills}}
+  return {best:it.best,bossKills:it.records.bossKills,merges:it.stats.merges,fusions:it.stats.fusions||0,relicKinds:kinds,gold:it.gold,heroLv:it.hero.lv,deaths:it.stats.deaths,runs:it.stats.runs,kills:it.stats.kills,cr:it.records.cr||0}}
 function rcCheck(){
   rcInit();var c=rcCtx(),newly=[];
   RC_ACH.forEach(function(a){if(!it.records.ach[a.id]&&a.ck(c)){it.records.ach[a.id]=true;newly.push(a)}});
@@ -4991,7 +4993,7 @@ function rcHub(){
   h+='<div class="rcstat">'
     +'<span>최고 <b>'+c.best+'층</b></span><span>런 <b>'+c.runs+'</b></span><span>처치 <b>'+c.kills+'</b></span>'
     +'<span>보스 처치 <b>'+c.bossKills+'</b></span><span>합성 <b>'+c.merges+'</b></span><span>융합 <b>'+c.fusions+'</b></span>'
-    +'<span>유물 <b>'+c.relicKinds+'/14종</b></span><span>쓰러짐 <b>'+c.deaths+'</b></span></div>';
+    +'<span>유물 <b>'+c.relicKinds+'/14종</b></span><span>쓰러짐 <b>'+c.deaths+'</b></span><span>갈림길 <b>'+c.cr+'</b></span></div>';
   h+='<div class="rcgrid">';
   RC_ACH.forEach(function(a){
     var on=!!it.records.ach[a.id];
@@ -5007,6 +5009,158 @@ function rcHub(){
   }else setTimeout(rcEx,150);
 })();
 
+/* ===== 갈림길 (자체 설계): 지하 4·9·14…층 진입 때 3개의 길 중 하나를 고르는 선택지. 다음 층은 항상 보스 층이라 "보스를 어떻게 지날지"를 고르는 구조. 효과는 다음 층 하나에만 적용되는 일회성이라 반복 보상 악용이 없고, 새로고침하면 런이 거점부터 다시 시작되어 같은 선택지가 다시 나옵니다. 선택 방식(직접/자동)과 선호 방향은 유물 설정을 그대로 공유합니다 ===== */
+var CR_PATHS=[
+  {id:"battle",icon:"⚔️",name:"전투의 길",dir:"공격",desc:"다음 층(보스) 적 체력·공격 +35% · 처치 골드·경험치 +60%",hp:1.35,dmg:1.35,goldB:0.6,xpB:0.6,heal:0,loot:0},
+  {id:"treasure",icon:"💰",name:"보물의 길",dir:"배치",desc:"전리품 즉시 +1개 · 다음 층(보스) 적 체력 -20% · 처치 골드 +25%",hp:0.8,dmg:1,goldB:0.25,xpB:0,heal:0,loot:1},
+  {id:"rest",icon:"🔥",name:"휴식의 길",dir:"생존",desc:"즉시 체력 35% 회복 · 다음 층(보스) 적 공격력 -15%",hp:1,dmg:0.85,goldB:0,xpB:0,heal:0.35,loot:0}
+];
+var CR_PAUSE=false,CR_ACT=null,CR_SEL=null,CR_LOW=false,CRQ=[];
+function crInit(){rcInit();it.records.cr=it.records.cr||0}
+/* 추천: 선호 방향에 따르되, 체력이 절반 이하이면 방향과 무관하게 휴식을 우선 (위임 플레이 안전장치). 수동 화면의 추천 배지와 자동 선택이 같은 함수를 씁니다 */
+function crPick(){
+  rlInit();
+  var pref=(it.relics&&it.relics.pref)||"균형";
+  var low=!!(Xe&&Xe.maxHp>0&&Xe.hp<Xe.maxHp*0.5);
+  var p;
+  if(low)p=CR_PATHS[2];
+  else if(pref==="공격")p=CR_PATHS[0];
+  else if(pref==="생존")p=CR_PATHS[2];
+  else p=CR_PATHS[1];
+  return {p:p,low:low};
+}
+/* 선택 반영: 다음 층 한정 수정자 + 즉시 효과(회복/전리품) + 기록 집계 */
+function crGain(p,src){
+  if(!Xe)return;
+  crInit();
+  CR_ACT={floor:Xe.floor+1,hp:p.hp,dmg:p.dmg,goldB:p.goldB,xpB:p.xpB};
+  it.records.cr++;
+  if(p.heal){Xe.hp=Math.min(Xe.maxHp,Xe.hp+Xe.maxHp*p.heal);k3()}
+  if(p.loot){
+    var u=Kl(it);
+    if(u.length){
+      var c=u[Math.floor(Math.random()*u.length)],h=1+(Math.random()<.3?Math.floor(Xe.floor/8):0);
+      h=Math.min(h,13);var y=ho(c,h);
+      if(ks(it,y)){Xe.loot.push(y);rn("💰 보물의 길 전리품: "+bn[y.type].name+" Lv"+y.lv,3000)}
+      else{var L=ma(y);it.gold+=L;rn("💰 보관함이 가득 차 "+bn[c].name+"을(를) "+L+"g에 팔았습니다",3000)}
+      vn();
+    }
+  }
+  uo();rcCheck();
+  rn((src==="auto"?"🧭 갈림길 자동 선택 · ":"🧭 ")+p.icon+" "+p.name+" — 다음 층(지하 "+CR_ACT.floor+"층 보스) "+p.desc,3200);
+  if(Xe.say)Xe.say("갈림길: "+p.name+" 선택");
+}
+function crAuto(f){var r=crPick();crGain(r.p,"auto")}
+function crTrigger(f){
+  if(li!=="run")return;
+  if(CR_PAUSE||RL_PAUSE||RLQ.length){if(CRQ.indexOf(f)<0)CRQ.push(f);return}
+  rlInit();
+  if(it.relics&&it.relics.mode==="auto")crAuto(f);else crOpen(f);
+}
+function crMaybe(){
+  if(CR_PAUSE||RL_PAUSE||RLQ.length||!CRQ.length||li!=="run")return;
+  var f=CRQ.shift();
+  rlInit();
+  if(it.relics&&it.relics.mode==="auto")crAuto(f);else crOpen(f);
+}
+/* 수동 선택 화면: 카드 탭 → 확인 버튼 2단계 (유물과 같은 오탭 방지) */
+var crmEl=document.createElement("div");crmEl.id="rlm2";document.body.appendChild(crmEl);
+function crOpen(f){
+  CR_PAUSE=true;CR_SEL=null;
+  var rec=crPick();CR_LOW=rec.low;
+  var pref=(it.relics&&it.relics.pref)||"균형";
+  var h='<div class="rlbox"><h3>🧭 지하 '+f+'층 갈림길</h3><div class="rlsub">다음 층(지하 '+(f+1)+'층)에는 보스가 있습니다 · 어떻게 지낼지 고르세요 · 런이 끝나면 사라지는 일회 효과</div><div class="rlcards">';
+  CR_PATHS.forEach(function(p,ix){
+    h+='<div class="rlc'+(p===rec.p?' rec':'')+'" data-ix="'+ix+'">'+(p===rec.p?'<div class="rlrec">⭐ 추천</div>':'')+'<div class="ri">'+p.icon+'</div><div class="rn2">'+p.name+'</div><div class="rd">'+p.desc+'</div><div><span class="rt '+RL_DIRC[p.dir]+'">'+p.dir+'</span></div></div>';
+  });
+  h+='</div><div class="rlwhy">⭐ <b>'+rec.p.icon+' '+rec.p.name+'</b> 추천 — 선호 방향 \''+pref+'\''+(rec.low?' · 체력이 절반 이하라 안전을 우선합니다':'')+'</div>';
+  h+='<div class="rlbtns"><button class="btn pri" id="crOk" disabled>길을 고르세요</button></div>';
+  h+='<div class="rlhint">선택 방식·선호 방향은 거점의 유물 설정과 같습니다 · 새로고침하면 런이 거점부터 다시 시작되어 같은 선택지가 다시 나옵니다</div></div>';
+  crmEl.innerHTML=h;crmEl.classList.add("on");
+  var cards=crmEl.querySelectorAll(".rlc");
+  cards.forEach(function(el){
+    el.onclick=function(){
+      cards.forEach(function(x){x.classList.remove("sel")});
+      el.classList.add("sel");
+      CR_SEL=CR_PATHS[+el.dataset.ix];
+      var b=Et("crOk");b.disabled=false;b.textContent=CR_SEL.icon+" "+CR_SEL.name+" 선택";
+      ae.pick();
+    };
+  });
+  Et("crOk").onclick=function(){crConfirm()};
+}
+function crConfirm(){
+  if(!CR_SEL)return;
+  var p=CR_SEL;CR_SEL=null;
+  crmEl.classList.remove("on");crmEl.innerHTML="";
+  CR_PAUSE=false;
+  crGain(p,"manual");
+  ae.levelup();
+  crMaybe();
+}
+/* 엔진 훅: 층 진입(방아쇠·수정자 해제), 적 등장(체첩·공격 배율), 쓰러짐(수정자 해제) */
+var crE4=E4;
+E4=function(o,t,e,n,i){
+  var r=crE4.apply(this,arguments);
+  if(o==="floor"){
+    if(CR_ACT&&t>CR_ACT.floor)CR_ACT=null;
+    if(t>=4&&(t-4)%5===0)crTrigger(t);
+  }
+  if(o==="spawn"&&CR_ACT&&Xe&&Xe.floor===CR_ACT.floor&&t){
+    t.hp=Math.max(1,Math.round(t.hp*CR_ACT.hp));
+    if(t.maxHp)t.maxHp=Math.max(1,Math.round(t.maxHp*CR_ACT.hp));
+    t.dmg=t.dmg*CR_ACT.dmg;
+    if(t.boss)Dl("🧭 갈림길 효과 적용 중");
+  }
+  if(o==="dead")CR_ACT=null;
+  return r;
+};
+/* 보상 배율: 대상 층에서의 처치 골드·경험치에만 적용 */
+var crKill=la.prototype.kill;
+la.prototype.kill=function(){
+  if(!CR_ACT||!Xe||this.floor!==CR_ACT.floor||(!CR_ACT.goldB&&!CR_ACT.xpB))return crKill.apply(this,arguments);
+  var g0=this.sv.gold,x0=this.xpGain;
+  var r=crKill.apply(this,arguments);
+  var bg=Math.round((this.sv.gold-g0)*CR_ACT.goldB),bx=Math.round((this.xpGain-x0)*CR_ACT.xpB);
+  if(bg>0){this.sv.gold+=bg;this.goldGain+=bg}
+  if(bx>0){this.sv.hero.xp+=bx;this.xpGain+=bx}
+  return r;
+};
+/* 갈림길 모달이 열려 있으면 런 일시정지 (유물 모달과 같은 방식) */
+var crUpd=la.prototype.update;
+la.prototype.update=function(t){if(CR_PAUSE)return;crUpd.call(this,t)};
+/* 유물 모달이 닫힌 뒤 미뤄 둔 갈림길을 이어서 처리 (모달 겹침 방지) */
+var crRlMaybe=rlMaybe;
+rlMaybe=function(){crRlMaybe.apply(this,arguments);crMaybe()};
+/* 새 런 시작 때 갈림길 상태 초기화 */
+var crO3=O3;
+O3=function(){
+  CR_ACT=null;CR_SEL=null;CR_PAUSE=false;CRQ.length=0;
+  crmEl.classList.remove("on");crmEl.innerHTML="";
+  crO3.apply(this,arguments);
+};
+/* 거점 표시: 갈림길 안내 (기록 섹션 뒤에 이어 붙임) */
+var crGr=gr;
+gr=function(o){crGr.apply(this,arguments);crHub()};
+function crHub(){
+  crInit();
+  var t=Et("hub");if(!t)return;
+  var pref=(it.relics&&it.relics.pref)||"균형";
+  var mode=(it.relics&&it.relics.mode)||"manual";
+  var h='<h2 style="margin-top:12px">갈림길 <small>지하 4·9·14…층에서 3개의 길 · 다음 보스 층에만 적용되는 일회 선택</small></h2>';
+  h+='<div class="card" style="font-size:12.5px;line-height:1.55">'
+    +'⚔️ 전투의 길: 보스가 강해지지만 골드·경험치 +60% · 💰 보물의 길: 전리품 즉시 +1개, 보스 약화 · 🔥 휴식의 길: 체력 35% 회복, 보스 공격력 감소<br>'
+    +'선택 방식·선호 방향은 유물 설정과 같습니다 — 현재: '+(mode==="auto"?"자동 선택 ('"+pref+"' 방향 · 체력 낮으면 휴식 우선)":"직접 고르기 (추천 표시)")
+    +' · 지금까지 갈림길 선택 <b>'+((it.records&&it.records.cr)||0)+'</b>회</div>';
+  t.insertAdjacentHTML("beforeend",h);
+}
+/* 검증용 노출 */
+(function crEx(){
+  if(window.__game){
+    window.__game.crInfo=function(){crInit();return {act:CR_ACT?{floor:CR_ACT.floor,hp:CR_ACT.hp,dmg:CR_ACT.dmg,goldB:CR_ACT.goldB,xpB:CR_ACT.xpB}:null,pause:CR_PAUSE,q:CRQ.slice(),picks:it.records.cr}};
+    window.__game.crChoose=function(ix){CR_SEL=CR_PATHS[ix];crConfirm()};  /* 테스트·접근성용 프로그램 선택 (실제 확인 경로를 그대로 탐) */
+  }else setTimeout(crEx,150);
+})();
 L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});})();
 /*! Bundled license information:
 
