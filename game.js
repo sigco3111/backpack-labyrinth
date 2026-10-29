@@ -4933,6 +4933,99 @@ function rlHub(){
 ae.boss=function(){wo(.5,.6,110);be(75,.55,"sawtooth",.4,38);be(150,.3,"triangle",.22,75,.18);be(300,.22,"square",.12,600,.3)};
 /* 백그라운드 탭에서는 오디오 정지, 복귀 시 재개 (무음 설정이면 재개하지 않음) */
 document.addEventListener("visibilitychange",function(){if(!Se)return;if(document.hidden){Se.suspend()}else if(!b3){Se.resume()}});
+/* ===== 융합 추천 엔진 (자체 설계 확장): 게임 고유 가치 함수 Ss + 인접 가중 adjTotalW로 전후 비교. 자동 실행 없음 — 추천과 비교만 ===== */
+function fzVal(board,inv){
+  var w=adjTotalW(board).w;
+  for(var i=0;i<inv.length;i++)w+=Ss(inv[i]);
+  return w;
+}
+function fzSim(A,B){
+  var chk=fzCheck(A,B);if(!chk.ok)return {ok:false,msg:chk.msg};
+  if(!bn[A.type].fused&&!bn[B.type].fused&&A.type===B.type)return {ok:false,msg:"같은 기본 장비 2개는 드래그 합성으로 Lv를 올리세요"};
+  var v0=fzVal(it.board,it.inv);
+  var R=fzResult(A,B);
+  if(!bn[R.type])return {ok:false,msg:"이 조합의 결과가 없습니다"};
+  var board=it.board.slice(),inv=it.inv.slice();
+  var rm=function(J){var i=board.indexOf(J);if(i>=0)board.splice(i,1);i=inv.indexOf(J);if(i>=0)inv.splice(i,1)};
+  var c0=bn[A.type].cells.length+bn[B.type].cells.length,c1;
+  if(R.reforge){
+    var F=bn[A.type].fused?A:B;
+    rm(A);rm(B);
+    var F2={type:F.type,lv:Math.min(13,F.lv+1),rot:F.rot,x:F.x,y:F.y,id:"sim"};
+    if(F.x>=0)board.push(F2);else inv.push(F2);
+    c1=bn[F.type].cells.length;
+  }else{
+    var plan=fzPlan(A,B,R.type);
+    if(!plan)return {ok:false,msg:"놓을 자리가 없습니다"};
+    rm(A);rm(B);
+    var res={type:R.type,lv:R.lv,rot:plan.rot||0,x:-1,y:-1,id:"sim"};
+    if(plan.w==="board"){res.x=plan.x;res.y=plan.y;board.push(res)}else inv.push(res);
+    c1=bn[R.type].cells.length;
+  }
+  var v1=fzVal(board,inv);
+  return {ok:true,reforge:!!R.reforge,type:R.type,lv:R.lv,v0:v0,v1:v1,delta:v1-v0,c0:c0,c1:c1};
+}
+function fzBest(){
+  var pool=it.board.concat(it.inv).filter(function(J){return !J.lock});
+  var best=null;
+  for(var i=0;i<pool.length;i++)for(var j=i+1;j<pool.length;j++){
+    var sim=fzSim(pool[i],pool[j]);
+    if(!sim.ok||sim.delta<=0)continue;
+    if(!best||sim.delta>best.sim.delta)best={A:pool[i],B:pool[j],sim:sim};
+  }
+  return best;
+}
+function fzLine2(sim){
+  var r10=function(x){return Math.round(x*10)/10};
+  var d=r10(sim.delta),ds=(d>=0?"+":"")+d;
+  return "전투 가치 "+r10(sim.v0)+" → "+r10(sim.v1)+" ("+ds+") · 칸 "+sim.c0+" → "+sim.c1;
+}
+/* 모달 비교 + 더 나은 추천 표시 */
+var fzModal0=fzModal;
+fzModal=function(open){
+  fzModal0(open);
+  if(!open)return;
+  var m=Et("fzm");if(!m)return;
+  var box=m.querySelector?m.querySelector(".fzbox"):null;if(!box)return;
+  var A=FZ.a,B=FZ.b;if(!A||!B)return;
+  var old=Et("fzcmp");if(old&&old.parentNode)old.parentNode.removeChild(old);
+  var sim=fzSim(A,B);
+  var div=document.createElement("div");div.id="fzcmp";
+  var h="";
+  if(sim.ok){
+    h+='<div class="fzcmp-t">예상 전후 비교</div><div>'+fzLine2(sim)+"</div>";
+    if(sim.delta<=0)h+='<div class="fzcmp-bad">주의: 이 조합은 현재보다 전투 가치가 낮아질 수 있습니다</div>';
+    var best=fzBest();
+    if(best&&best.sim.delta>sim.delta+0.05&&!(best.A===A&&best.B===B)&&!(best.A===B&&best.B===A)){
+      h+='<div class="fzcmp-rec">더 나은 추천: '+bn[best.A.type].name+" Lv"+best.A.lv+" + "+bn[best.B.type].name+" Lv"+best.B.lv+" ("+(best.sim.delta>=0?"+":"")+(Math.round(best.sim.delta*10)/10)+') <button type="button" id="fzcmpGo">이 조합으로</button></div>';
+    }
+  }else h+='<div class="fzcmp-bad">'+sim.msg+"</div>";
+  div.innerHTML=h;
+  box.appendChild(div);
+  var go=Et("fzcmpGo");
+  if(go)go.onclick=function(){
+    var best=fzBest();if(!best)return;
+    FZ.a=best.A;FZ.b=best.B;Be=best.B;V3();x3();fzModal(true);
+  };
+};
+/* 융합 모드 진입 시 1회 추천 안내 (자동 실행 아님) */
+var bFuse0=Et("bFuse");
+if(bFuse0&&bFuse0.onclick){
+  var bFuseFn=bFuse0.onclick;
+  bFuse0.onclick=function(){
+    var wasOn=FZ.on;
+    bFuseFn();
+    if(!wasOn&&FZ.on){
+      var best=fzBest();
+      if(best)rn("💡 융합 추천: "+bn[best.A.type].name+" Lv"+best.A.lv+" + "+bn[best.B.type].name+" Lv"+best.B.lv+" — 재료 2개를 고르면 전후 비교를 보여 드립니다",3200);
+    }
+  };
+}
+/* 검증용 노출 */
+(function fzEx(){
+  if(window.__game){window.__game.fzSim=fzSim;window.__game.fzBest=fzBest}
+  else setTimeout(fzEx,150);
+})();
 /* 검증용 노출 */
 (function rlEx(){
   if(window.__game){
@@ -5227,3 +5320,4 @@ three/build/three.module.js:
    * SPDX-License-Identifier: MIT
    *)
 */
+<!
