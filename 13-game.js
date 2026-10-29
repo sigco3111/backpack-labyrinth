@@ -5992,6 +5992,26 @@ function svSafeBoot(){
 }
 try{svSafeBoot()}catch(_){}
 window.__svSafe={blocked:()=>_svBlock,status:()=>_svStatus};
+
+/* v40 hotfix: 결과 화면이 뜰 때 갈림길/유물 선택 모달이 열린 채 남아 「거점으로 돌아가기」 탭을 가리지 않도록 정리 */
+(function(){
+  if(typeof P3!=="function")return;
+  var p3prev=P3;
+  P3=function(o){
+    var r=p3prev.apply(this,arguments);
+    try{
+      if(typeof CR_PAUSE!=="undefined"){CR_PAUSE=false;if(typeof CRQ!=="undefined")CRQ.length=0}
+      if(typeof RL_PAUSE!=="undefined"){RL_PAUSE=false;if(typeof RLQ!=="undefined")RLQ.length=0}
+      var m1=document.getElementById("rlm");if(m1)m1.classList.remove("on");
+      var m2=document.getElementById("rlm2");if(m2)m2.classList.remove("on");
+      var ma=document.getElementById("arm");if(ma)ma.classList.remove("on");
+      var mf=document.getElementById("fzm");if(mf)mf.classList.remove("on");
+      var mb=document.getElementById("result");if(mb)mb.style.zIndex="90";
+    }catch(_){}
+    return r;
+  };
+})();
+
 })();
 /*! Bundled license information:
 
