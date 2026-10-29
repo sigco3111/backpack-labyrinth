@@ -4543,7 +4543,11 @@ function bestSpot(o,placed,J){
 function TrAdj(o){
   var lockedB=o.board.filter(function(J){return J.lock});
   var lockedI=o.inv.filter(function(J){return J.lock});
-  var free=o.board.filter(function(J){return !J.lock}).concat(o.inv.filter(function(J){return !J.lock}));
+  var freeB=o.board.filter(function(J){return !J.lock});
+  var curSnap=freeB.map(function(J){return [J,J.rot,J.x,J.y]});
+  var curArr=lockedB.concat(freeB);
+  var curW0=adjTotalW(curArr).w;
+  var free=freeB.concat(o.inv.filter(function(J){return !J.lock}));
   free.sort(function(a,b){return Ss(b)-Ss(a)});
   var placed=lockedB.slice(),left=[];
   free.forEach(function(J){
@@ -4609,7 +4613,17 @@ function TrAdj(o){
     if(!done)left2.push(J);
   });
   var legacyW=adjTotalW(legacy).w;
-  if(legacyW>placedW+0.001){placed=legacy;left=left2}
+  if(curW0+0.001>=placedW&&curW0+0.001>=legacyW){
+    curSnap.forEach(function(s){s[0].rot=s[1];s[0].x=s[2];s[0].y=s[3]});
+    placed=curArr;
+    left=[];
+    free.forEach(function(J){
+      if(freeB.indexOf(J)>=0)return;
+      var s=bestSpot(o,placed,J);
+      if(s){J.rot=s[0];J.x=s[1];J.y=s[2];placed.push(J)}else left.push(J);
+    });
+  }
+  else if(legacyW>placedW+0.001){placed=legacy;left=left2}
   else snap.forEach(function(s){s[0].rot=s[1];s[0].x=s[2];s[0].y=s[3]});
   o.board=placed;
   o.inv=lockedI;
@@ -4709,14 +4723,8 @@ x3=function(){
     tp.innerHTML+='<br><span style="color:var(--gold)">🔒 잠금됨</span> <span style="color:var(--dim)">· 자동 정리·자동 합성에서 빠지고 판매할 수 없습니다. 직접 끌어 옮기거나 회전·융합하는 것은 그대로 할 수 있습니다.</span>';
   }
 };
-if(window.__game){
-  window.__game.arrangeAdj=TrAdj;
-  window.__game.mergeL=ArL;
-  window.__game.adjTotal=function(){return adjTotalW(it.board)};
-  window.__game.adjSnap=adjSnap;
-}
 
-L4();})();
+L4();if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}})();
 /*! Bundled license information:
 
 three/build/three.core.js:
