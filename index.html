@@ -78,6 +78,8 @@ h2 small{font-weight:400;color:var(--dim);font-size:11.5px;margin-left:6px}
 @keyframes pulse{to{filter:brightness(1.5)}}
 .pc.fz{border-color:#f2c66b;box-shadow:inset 0 0 0 1px rgba(242,198,107,.55),0 0 7px rgba(242,198,107,.4)}
 .pc.fzp{outline:3px solid #b98bff;outline-offset:-3px;animation:pulse .6s infinite alternate}
+.pc.adj{border-color:rgba(242,198,107,.95);box-shadow:inset 0 0 0 1px rgba(242,198,107,.6),0 0 10px rgba(242,198,107,.55)}
+.pc.adjl{outline:2px solid var(--gold);outline-offset:-2px;animation:pulse .6s infinite alternate}
 .pc.fzfx{animation:fzfx 1s ease-out;z-index:3}
 @keyframes fzfx{0%{filter:brightness(3) saturate(0);transform:scale(.5)}35%{filter:brightness(2.2);transform:scale(1.25);box-shadow:0 0 22px #ffd24a}100%{filter:none;transform:scale(1)}}
 #fzm{position:fixed;inset:0;z-index:70;background:rgba(6,4,12,.84);display:none;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)}
@@ -142,7 +144,7 @@ body.hubm #panel{min-height:100dvh}
  </section>
  <section id="panel">
   <div class="ov" id="hub"></div>
-  <h2>배낭 <small id="gridhint">끌어서 배치 · 다시 누르면 회전 · 같은 아이템 위에 놓으면 합성 · 잠긴 칸은 골드로 해금</small></h2>
+  <h2>배낭 <small id="gridhint">끌어서 배치 · 다시 누르면 회전 · 같은 아이템 위에 놓으면 합성 · 잠긴 칸은 골드로 해금 · 맞닿은 장비는 인접 보너스</small></h2>
   <div id="boardrow">
    <div id="boardwrap"><div class="grid" id="board"><div class="items" id="bitems"></div></div></div>
    <div id="sidebox">
@@ -158,6 +160,6 @@ body.hubm #panel{min-height:100dvh}
  </section>
 </div>
 <div id="ghost"></div><div id="toast"></div>
-<script src="game.js?v=5"></script>
+<script src="game.js?v=6"></script>
 </body>
 </html>
