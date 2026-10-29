@@ -4336,34 +4336,33 @@ function fzResult(A,B){
 }
 /* \uC790\uB9AC \uCC3E\uAE30: \uC7AC\uB8CC\uAC00 \uC788\uB358 \uC790\uB9AC\uC640 \uAC00\uC7A5 \uB9CE\uC774 \uACB9\uCE58\uB294 \uACF3. \uACC4\uC0B0\uB9CC \uD558\uACE0 \uC0C1\uD0DC\uB294 \uADF8\uB300\uB85C \uB418\uB3CC\uB9B0\uB2E4 */
 function fzPlan(A,B,type){
-  var sv=it,wa=da(sv,A),wb=da(sv,B),sb=sv.board.slice(),si=sv.inv.slice();
-  var foot=function(I){return En(I.type,I.rot).map(function(c){return [I.x+c[0],I.y+c[1]]})};
-  var olds={board:[],inv:[]};
-  olds[wa]=olds[wa].concat(foot(A));olds[wb]=olds[wb].concat(foot(B));
-  var plan=null;
-  ha(sv,A);ha(sv,B);
-  try{
-    var regions=(wa==="board"||wb==="board")?["board","inv"]:["inv","board"];
-    for(var ri=0;ri<regions.length&&!plan;ri++){
-      var w=regions[ri],W=w==="board"?6:8,H=w==="board"?6:fa(sv),best=null,bs=-1,first=null;
-      for(var rot=0;rot<4;rot++){
-        var cs=En(type,rot);
-        for(var y=0;y<H;y++)for(var x=0;x<W;x++){
-          if(!hi(sv,w,type,rot,x,y))continue;
-          if(!first)first={w:w,x:x,y:y,rot:rot};
-          var sc=0;
-          for(var k=0;k<cs.length;k++)for(var m=0;m<olds[w].length;m++)if(olds[w][m][0]===x+cs[k][0]&&olds[w][m][1]===y+cs[k][1])sc++;
-          if(sc>bs){bs=sc;best={w:w,x:x,y:y,rot:rot}}
-        }
-      }
-      if(first)plan=bs>0?best:first;
+  var sv=it,wa=da(sv,A),wb=da(sv,B);
+  if(!wa||!wb)return null;
+  var olds={board:Object.create(null),inv:Object.create(null)};
+  [A,B].forEach(function(J){var w=da(sv,J),cs=En(J.type,J.rot);for(var k=0;k<cs.length;k++)olds[w][(J.x+cs[k][0])+','+(J.y+cs[k][1])]=1});
+  var regions=(wa==='board'||wb==='board')?['board','inv']:['inv','board'];
+  for(var ri=0;ri<regions.length;ri++){
+    var w=regions[ri],W=w==='board'?6:8,H=w==='board'?6:fa(sv),occ=Object.create(null),arr=sv[w];
+    for(var q=0;q<arr.length;q++){
+      var J=arr[q];if(J===A||J===B||J.x<0)continue;
+      var jc=En(J.type,J.rot);for(var k=0;k<jc.length;k++)occ[(J.x+jc[k][0])+','+(J.y+jc[k][1])]=1;
     }
-  }finally{
-    sv.board.length=0;sb.forEach(function(v){sv.board.push(v)});
-    sv.inv.length=0;si.forEach(function(v){sv.inv.push(v)});
+    var best=null,bs=-1;
+    for(var rot=0;rot<4;rot++){
+      var cs=En(type,rot);
+      for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+        var ok=true,sc=0;
+        for(var k=0;k<cs.length;k++){
+          var cx=x+cs[k][0],cy=y+cs[k][1],key=cx+','+cy;
+          if(cx<0||cy<0||cx>=W||cy>=H||occ[key]||(w==='board'&&!ko(sv,cx,cy))){ok=false;break}
+          if(olds[w][key])sc++;
+        }
+        if(ok&&sc>bs){bs=sc;best={w:w,x:x,y:y,rot:rot}}
+      }
+    }
+    if(best){best.fromBoard=wa==='board'||wb==='board';return best}
   }
-  if(plan)plan.fromBoard=(wa==="board"||wb==="board");
-  return plan;
+  return null;
 }
 function fzDo(A,B){
   var chk=fzCheck(A,B);if(!chk.ok){rn(chk.msg);return false}
@@ -4942,10 +4941,10 @@ function fzVal(board,inv){
   for(var i=0;i<inv.length;i++)w+=Ss(inv[i]);
   return w;
 }
-function fzSim(A,B){
+function fzSim(A,B,baseValue){
   var chk=fzCheck(A,B);if(!chk.ok)return {ok:false,msg:chk.msg};
   if(!bn[A.type].fused&&!bn[B.type].fused&&A.type===B.type)return {ok:false,msg:"같은 기본 장비 2개는 드래그 합성으로 Lv를 올리세요"};
-  var v0=fzVal(it.board,it.inv);
+  var v0=baseValue===undefined?fzVal(it.board,it.inv):baseValue;
   var R=fzResult(A,B);
   if(!bn[R.type])return {ok:false,msg:"이 조합의 결과가 없습니다"};
   var board=it.board.slice(),inv=it.inv.slice();
@@ -4972,9 +4971,9 @@ function fzSim(A,B){
 }
 function fzBest(){
   var pool=it.board.concat(it.inv).filter(function(J){return !J.lock});
-  var best=null;
+  var best=null,baseValue=fzVal(it.board,it.inv);
   for(var i=0;i<pool.length;i++)for(var j=i+1;j<pool.length;j++){
-    var sim=fzSim(pool[i],pool[j]);
+    var sim=fzSim(pool[i],pool[j],baseValue);
     if(!sim.ok||sim.delta<=0)continue;
     if(!best||sim.delta>best.sim.delta)best={A:pool[i],B:pool[j],sim:sim};
   }
@@ -5778,13 +5777,47 @@ function fzAutoRun(steps,onlyOne){
   }
   return{done:done,skip:skip};
 }
-function fzAutoOpen(){
+var fzPlanToken=0;
+async function fzChainPlanAsync(maxN,token){
+  var owner=it,work=Object.assign({},it,{board:it.board.map(fzCloneIt),inv:it.inv.map(fzCloneIt)}),steps=[];
+  var fingerprint=JSON.stringify({board:owner.board,inv:owner.inv,up:owner.up,open:owner.open});
+  var tick=performance.now();
+  for(var n=0;n<maxN;n++){
+    var pool=work.board.concat(work.inv).filter(function(J){return !J.lock}),best=null,baseValue=fzVal(work.board,work.inv);
+    for(var i=0;i<pool.length;i++)for(var j=i+1;j<pool.length;j++){
+      if(token!==fzPlanToken)return null;
+      var live=it,sim;
+      try{it=work;sim=fzSim(pool[i],pool[j],baseValue)}finally{it=live}
+      if(sim.ok&&sim.delta>0&&(!best||sim.delta>best.sim.delta))best={A:pool[i],B:pool[j],sim:sim};
+      if(performance.now()-tick>8){await new Promise(function(r){setTimeout(r,0)});tick=performance.now()}
+    }
+    if(!best)break;
+    var A=best.A,B=best.B,S=best.sim,plan=null,live=it;
+    try{it=work;if(!S.reforge)plan=fzPlan(A,B,S.type)}finally{it=live}
+    if(!S.reforge&&!plan)break;
+    steps.push({aId:A.id,bId:B.id,aName:bn[A.type].name,aLv:A.lv,bName:bn[B.type].name,bLv:B.lv,reforge:!!S.reforge,type:S.type,lv:S.lv,delta:S.delta,c0:S.c0,c1:S.c1,resId:S.reforge?(bn[A.type].fused?A:B).id:('afsim'+n)});
+    var rm=function(J){var k=work.board.indexOf(J);if(k>=0)work.board.splice(k,1);k=work.inv.indexOf(J);if(k>=0)work.inv.splice(k,1)};
+    if(S.reforge){var F=bn[A.type].fused?A:B,X=bn[A.type].fused?B:A;rm(X);F.lv=Math.min(13,F.lv+1)}
+    else{rm(A);rm(B);work[plan.w].push({type:S.type,lv:S.lv,rot:plan.rot||0,x:plan.x,y:plan.y,id:'afsim'+n})}
+  }
+  if(token!==fzPlanToken)return null;
+  if(fingerprint!==JSON.stringify({board:owner.board,inv:owner.inv,up:owner.up,open:owner.open}))throw new Error('inventory-changed');
+  return steps;
+}
+async function fzAutoOpen(){
   if(FZ.on){ae.bad();rn("융합을 고르는 중에는 추천 일괄 융합을 쓸 수 없어요");return}
-  var steps=fzChainPlan(12);
-  if(!steps.length){ae.bad();rn("지금 추천할 수 있는 융합 조합이 없습니다",2600);return}
   var m=Et("fza");
   if(!m){m=document.createElement("div");m.id="fza";document.body.appendChild(m);
-    m.addEventListener("pointerdown",function(ev){if(ev.target===m)m.classList.remove("on")});}
+    m.addEventListener("pointerdown",function(ev){if(ev.target===m){fzPlanToken++;m.classList.remove("on")}});}
+  var token=++fzPlanToken;
+  m.innerHTML='<div class="fzbox" role="status"><h3>추천 조합을 계산 중입니다</h3><p>장비는 아직 바뀌지 않습니다.</p><button class="btn" id="fzaCancelCalc">취소</button></div>';
+  m.classList.add("on");
+  Et("fzaCancelCalc").onclick=function(){fzPlanToken++;m.classList.remove("on")};
+  await new Promise(function(r){setTimeout(r,0)});
+  var steps;
+  try{steps=await fzChainPlanAsync(12,token)}catch(e){if(token===fzPlanToken){m.classList.remove("on");rn("추천 계산을 중단했습니다. 장비는 그대로입니다. 다시 눌러 주세요",3000)}return}
+  if(!steps||token!==fzPlanToken)return;
+  if(!steps.length){m.classList.remove("on");ae.bad();rn("지금 추천할 수 있는 융합 조합이 없습니다",2600);return}
   var r10=function(x){return Math.round(x*10)/10};
   var tot=0;
   var h='<div class="fzbox"><h3>추천 일괄 융합 계획 ('+steps.length+'단계)</h3>';
@@ -5807,15 +5840,16 @@ function fzAutoOpen(){
 function fzAutoPref(){try{return localStorage.getItem("bp-fzauto")==="1"}catch(_){return false}}
 function fzAutoSet(on){try{localStorage.setItem("bp-fzauto",on?"1":"0")}catch(_){}}
 var fzAutoBusy=false,fzAutoLog=[],fzAutoStamp=null;
-function fzAutoMaybe(){
+async function fzAutoMaybe(){
   if(!fzAutoPref()||fzAutoBusy)return;
   if(!it||!(it.board instanceof Array)||!(it.inv instanceof Array)||typeof it.gold!=="number")return;
   if(typeof Xe!=="undefined"&&Xe&&Xe===fzAutoStamp)return;
   fzAutoStamp=(typeof Xe!=="undefined")?Xe:null;
   fzAutoBusy=true;
   try{
-    var steps=fzChainPlan(12);
-    if(!steps.length)return;
+    var token=fzPlanToken;
+    var steps=await fzChainPlanAsync(12,token);
+    if(!steps||!steps.length)return;
     var tot=0; for(var i2=0;i2<steps.length;i2++)tot+=steps[i2].delta;
     if(tot<=0)return;
     var snap=JSON.stringify({board:it.board,inv:it.inv,gold:it.gold,stats:it.stats});
@@ -5830,14 +5864,14 @@ function fzAutoMaybe(){
       try{var p2=JSON.parse(snap);it.board=p2.board;it.inv=p2.inv;it.gold=p2.gold;it.stats=p2.stats}catch(_){}
       rn("자동 융합 실패로 되돌렸습니다",2600);
     }
-  }finally{fzAutoBusy=false}
+  }catch(e){rn("자동 융합 계산을 중단했습니다. 장비는 그대로입니다",2600)}finally{fzAutoBusy=false}
 }
 var fzP3_0=P3;
 P3=function(o){var r=fzP3_0(o);try{setTimeout(fzAutoMaybe,650)}catch(_){}return r};
 (function fzaEx(){
   var b=Et("bAutoFuse");if(b)b.onclick=fzAutoOpen;
   if(window.__game){
-    window.__game.fzChainPlan=fzChainPlan;
+    window.__game.fzChainPlan=fzChainPlan;window.__game.fzChainPlanAsync=function(){return fzChainPlanAsync(12,fzPlanToken)};
     window.__game.fzAutoRun=fzAutoRun;
     window.__game.fzAutoOpen=fzAutoOpen;
     window.__game.fzAutoSet=fzAutoSet;window.__game.fzAutoPref=fzAutoPref;window.__game.fzAutoMaybe=fzAutoMaybe;window.__game.fzAutoLog=function(){return fzAutoLog.slice()};
