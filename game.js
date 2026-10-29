@@ -4407,7 +4407,6 @@ function fzMark(){
 function fzCancel(){FZ.on=false;FZ.a=null;FZ.b=null;fzModal(false);fzBtn();x3()}
 function fzPick(I){
   if(!FZ.a){
-    if(bn[I.type].fused){ae.bad();rn("\uC774\uBBF8 \uC735\uD569\uB41C \uC7A5\uBE44\uB294 \uB2E4\uC2DC \uC735\uD569\uD560 \uC218 \uC5C6\uC5B4\uC694");return}
     FZ.a=I;Be=I;ae.pick();V3();x3();return;
   }
   if(I===FZ.a){FZ.a=null;Be=null;ae.pick();V3();x3();return}
@@ -4447,7 +4446,7 @@ function fzModal(open){
   m.addEventListener("pointerdown",function(ev){if(ev.target===m){fzModal(false);FZ.b=null}});
   Et("bFuse").onclick=function(){
     if(FZ.on){fzCancel();return}
-    FZ.on=true;FZ.b=null;FZ.a=(Be&&da(it,Be)&&!bn[Be.type].fused)?Be:null;
+    FZ.on=true;FZ.b=null;FZ.a=(Be&&da(it,Be))?Be:null;
     fzBtn();ae.pick();x3();
   };
 })();
