@@ -6090,132 +6090,7 @@ window.__svSafe={blocked:()=>_svBlock,status:()=>_svStatus};
 })();
 
 
-/* v43: 쓰러진 뒤 복귀 실패 대응 — 위임 캡처 바인딩 + touchend 폴백 + P3 예외 복구 + 화면 내 진단 + 새 버전 배너 */
-(function(){
-  var DBG_KEY="bp-dbg-v1";
-  function dbg(m,extra){
-    try{
-      var a=[];try{a=JSON.parse(localStorage.getItem(DBG_KEY)||"[]")}catch(_){a=[]}
-      a.push({t:Date.now(),m:String(m).slice(0,80),e:extra?String(extra).slice(0,300):undefined});
-      if(a.length>40)a.splice(0,a.length-40);
-      try{localStorage.setItem(DBG_KEY,JSON.stringify(a))}catch(_){}
-      window.__dbg=a;
-    }catch(_){}
-  }
-  window.__dbgRead=function(){try{return JSON.parse(localStorage.getItem(DBG_KEY)||"[]")}catch(_){return []}};
-  /* 1) 안전 복귀 전환: gr()이 깨져도 결과 화면은 닫고 거점으로 */
-  function goHome(src){
-    dbg("bHome fire:"+src);
-    try{it.start=Math.min(it.start,it.best)}catch(_){}
-    try{Xe=null}catch(_){}
-    try{uo()}catch(_){}
-    try{gr();dbg("gr ok:"+src);return}catch(e){dbg("gr fail:"+src,e&&(e.message||e))}
-    try{
-      li="hub";
-      document.body.classList.add("hubm");
-      var r=document.getElementById("result");if(r)r.classList.remove("on");
-      var h=document.getElementById("hub");if(h)h.classList.add("on");
-      dbg("gr fallback ok:"+src);
-    }catch(e2){dbg("gr fallback fail:"+src,e2&&(e2.message||e2))}
-  }
-  /* 2) 위임 캡처: 결과 화면 중 bHome 영역 클릭은 어떤 경우에도 처리 */
-  document.addEventListener("click",function(ev){
-    try{
-      if(li!=="result")return;
-      var b=document.getElementById("bHome");if(!b)return;
-      var q=b.getBoundingClientRect();
-      var inBtn=ev.clientX>=q.left-4&&ev.clientX<=q.right+4&&ev.clientY>=q.top-4&&ev.clientY<=q.bottom+4;
-      var onBtn=ev.target&&(ev.target===b||(ev.target.closest&&ev.target.closest("#bHome")));
-      if(inBtn||onBtn){
-        if(window.__homeFired&&Date.now()-window.__homeFired<700)return;
-        window.__homeFired=Date.now();
-        goHome("delegated");
-      }
-    }catch(e){dbg("delegated err",e&&(e.message||e))}
-  },true);
-  /* 3) touchend 폴백 (iOS click 미발생 대비) */
-  document.addEventListener("touchend",function(ev){
-    try{
-      if(li!=="result")return;
-      var b=document.getElementById("bHome");if(!b)return;
-      var t=ev.changedTouches&&ev.changedTouches[0];if(!t)return;
-      var q=b.getBoundingClientRect();
-      if(t.clientX>=q.left-4&&t.clientX<=q.right+4&&t.clientY>=q.top-4&&t.clientY<=q.bottom+4){
-        if(window.__homeFired&&Date.now()-window.__homeFired<700)return;
-        window.__homeFired=Date.now();
-        goHome("touchend");
-      }
-    }catch(e){dbg("touchend err",e&&(e.message||e))}
-  },{capture:true,passive:true});
-  /* 4) P3 예외 복구 + 결과 화면 진단 한 줄 */
-  if(typeof P3==="function"){
-    var p3v43=P3;
-    P3=function(o){
-      var r;
-      try{
-        r=p3v43.apply(this,arguments);
-        dbg("P3 ok:"+(o?"dead":"retreat"));
-      }catch(e){
-        dbg("P3 fail:"+(o?"dead":"retreat"),e&&(e.message||e));
-        try{
-          li="result";
-          var el=document.getElementById("result");
-          el.classList.add("on");
-          el.innerHTML='<h1>'+(o?"쓰러졌습니다":"귀환했습니다")+'</h1>'
-            +'<div class="sub">전리품·레벨·영구 강화는 그대로 유지됩니다.</div>'
-            +'<button class="btn pri" id="bHome" style="width:100%;padding:12px;font-size:16px">거점으로 돌아가기</button>'
-            +'<div style="margin-top:8px;font-size:10px;color:#889">진단: '+String(e&&(e.message||e)||"").slice(0,200)+'</div>';
-          var b=document.getElementById("bHome");
-          if(b)b.onclick=function(){goHome("fallback")};
-        }catch(_){}
-      }
-      try{
-        var el2=document.getElementById("result");
-        if(el2&&el2.classList.contains("on")&&!el2.querySelector(".dbgline")){
-          var d=document.createElement("div");
-          d.className="dbgline";
-          d.style.cssText="margin-top:10px;font-size:9px;color:#667";
-          var last=window.__dbgRead().slice(-3).map(function(x){return x.m+(x.e?":"+x.e:"")}).join(" | ");
-          d.textContent="v43 · "+last;
-          el2.appendChild(d);
-        }
-      }catch(_){}
-      return r;
-    };
-  }
-  /* 5) 같은 전투의 dead 이벤트 중복 처리 방지 */
-  if(typeof E4==="function"&&typeof WeakSet!=="undefined"){
-    var deadSeen=new WeakSet();
-    var e4v43=E4;
-    E4=function(o){
-      if(o==="dead"){
-        var b=null;try{b=Xe}catch(_){}
-        if(b){if(deadSeen.has(b)){dbg("dead dup suppressed");return}deadSeen.add(b)}
-        dbg("dead event");
-      }
-      return e4v43.apply(this,arguments);
-    };
-  }
-  /* 6) 새 버전 감지 배너 (탭하면 새로고침) */
-  try{
-    fetch("index.html",{cache:"no-store"}).then(function(r){return r.text()}).then(function(h){
-      var m=h.match(/13-game\.js\?v=(\d+)/);
-      var sc=document.querySelector('script[src*="13-game.js"]');
-      var cur=sc&&sc.src.match(/[?&]v=(\d+)/);
-      if(m&&cur&&+m[1]>+cur[1]){
-        var bn=document.createElement("div");
-        bn.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#ffd24a;color:#000;text-align:center;padding:8px;font-size:13px;font-weight:700;cursor:pointer";
-        bn.textContent="새 버전이 있습니다. 탭하여 새로고침";
-        bn.onclick=function(){location.reload()};
-        document.body.appendChild(bn);
-      }
-    }).catch(function(){});
-  }catch(_){}
-  dbg("v43 boot");
-})();
-
-
-/* v44: 쓰러진 뒤 복귀 실패 대응 — 위임 캡처 바인딩 + touchend 폴백 + P3 예외 복구 + 화면 내 진단 + 새 버전 배너 */
+/* v45: 쓰러진 뒤 복귀 실패 대응 — 위임 캡처 바인딩 + touchend 폴백 + P3 예외 복구 + 화면 내 진단 + 새 버전 배너 */
 (function(){
   var DBG_KEY="bp-dbg-v1";
   function dbg(m,extra){
@@ -6304,7 +6179,7 @@ window.__svSafe={blocked:()=>_svBlock,status:()=>_svStatus};
           d.className="dbgline";
           d.style.cssText="margin-top:10px;font-size:9px;color:#667";
           var last=window.__dbgRead().slice(logFrom).slice(-3).map(function(x){return x.m+(x.e?":"+x.e:"")}).join(" | ");
-          d.textContent="v44 · "+last;
+          d.textContent="v45 · "+last;
           el2.appendChild(d);
         }
       }catch(_){}
@@ -6339,7 +6214,7 @@ window.__svSafe={blocked:()=>_svBlock,status:()=>_svStatus};
       }
     }).catch(function(){});
   }catch(_){}
-  dbg("v44 boot");
+  dbg("v45 boot");
 })();
 
 })();
