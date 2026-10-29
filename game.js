@@ -5691,7 +5691,7 @@ var EN_MID={
   mage:{name:"방랑 마법사",model:"adv_mage",scale:1.05,hp:.95,dmg:.95,int:2.9,sp:"scorch"},
   rogue:{name:"그림자 도적",model:"adv_rogue",scale:1,hp:1.05,dmg:1,int:1.9,sp:"shadow"}
 };
-EN_BAKE.adv_knight=[.3241,0];EN_BAKE.adv_barbarian=[.341,0];EN_BAKE.adv_mage=[.3131,0];EN_BAKE.adv_rogue=[.3604,0];
+EN_BAKE.adv_knight=[.8376,0];EN_BAKE.adv_barbarian=[.8621,0];EN_BAKE.adv_mage=[.6897,0];EN_BAKE.adv_rogue=[.9195,0];
 var enSeed3=112233445;
 function enRnd3(){enSeed3=(enSeed3*1103515245+12345)&0x7fffffff;return enSeed3/0x7fffffff}
 function enApplyMid(r,F,o,t){
@@ -5717,7 +5717,7 @@ nf=function(o,t,e){
 (function enEx3(){
   if(window.__game){
     window.__game.enMid=function(){return Object.keys(EN_MID)};
-    window.__game.ver="v33-r11";
+    window.__game.ver="v34-r11";
   }else setTimeout(enEx3,150);
 })();
 
