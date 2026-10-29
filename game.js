@@ -5599,7 +5599,7 @@ var EN_DEEP={
   cthulhu:{name:"심연 괴물",model:"mon_cthulhu",scale:1.15,hp:1.9,dmg:1.15,int:3,sp:"fear"},
   cyclops:{name:"사이클롭스",model:"mon_cyclops",scale:1.35,hp:2.2,dmg:1.25,int:3.3,sp:"crush"}
 };
-var EN_BAKE={mon_ghost:[1.8399,-.0087],mon_bat:[1.4769,-.0345],mon_mushroom:[1.2448,-.0278],mon_demon:[1.5814,-.0822],mon_cthulhu:[1.6555,-.0938],mon_cyclops:[1.5441,-.0474]};
+var EN_BAKE={mon_ghost:[.6835,-.0032],mon_bat:[.4397,-.0103],mon_mushroom:[.6479,-.0145],mon_demon:[.6312,-.0328],mon_cthulhu:[.4333,-.0246],mon_cyclops:[.7647,-.0235]};
 var enSeed2=24681357;
 function enRnd2(){enSeed2=(enSeed2*1103515245+12345)&0x7fffffff;return enSeed2/0x7fffffff}
 function enApplyDeep(r,F,o,t){
@@ -5683,7 +5683,7 @@ try{
 (function enEx2(){
   if(window.__game){
     window.__game.enDeep=function(){return Object.keys(EN_DEEP)};
-    window.__game.ver="v30-r9";
+    window.__game.ver="v31-r9";
   }else setTimeout(enEx2,150);
 })();
 
