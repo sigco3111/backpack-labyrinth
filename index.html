@@ -181,6 +181,20 @@ body.hubm #panel{min-height:100dvh}
 .rcn{font-size:12px;font-weight:700;margin-top:2px}
 .rca.on .rcn{color:var(--gold)}
 .rcd{font-size:10.5px;color:var(--dim);margin-top:1px;line-height:1.3}
+
+/* v20 전투 연출 강화 */
+#fxl{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+.fxp{position:absolute;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe9a3,#f5b92e 60%,#b97e12);box-shadow:0 0 8px rgba(245,185,46,.9);animation:fxp 1.05s ease-out forwards}
+.fxp.big{width:14px;height:14px;box-shadow:0 0 14px rgba(245,185,46,1)}
+.fxp.spk{background:none;box-shadow:none;color:#ffd24a;font-size:20px;font-weight:900;width:auto;height:auto}
+.fxp.big.spk{font-size:28px;color:#ffe9a3}
+@keyframes fxp{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}12%{opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1);opacity:0}}
+.fxf{position:absolute;inset:0;opacity:0;animation:fxf .7s ease-out forwards}
+.fxf.gold{background:radial-gradient(ellipse at center,rgba(255,210,74,.28),rgba(255,210,74,0) 70%)}
+.fxf.red{background:radial-gradient(ellipse at center,rgba(255,70,50,.22),rgba(255,70,50,0) 75%)}
+@keyframes fxf{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+#banner.boss{font-size:34px;color:#ff7a5c;text-shadow:0 0 18px rgba(255,80,50,.8),0 2px 6px #000}
+#banner.bosswin{font-size:34px;color:#ffd24a;text-shadow:0 0 22px rgba(255,210,74,.9),0 2px 6px #000}
 </style>
 </head>
 <body>
@@ -216,6 +230,6 @@ body.hubm #panel{min-height:100dvh}
  </section>
 </div>
 <div id="ghost"></div><div id="toast"></div>
-<script src="game.js?v=20"></script>
+<script src="game.js?v=21"></script>
 </body>
 </html>

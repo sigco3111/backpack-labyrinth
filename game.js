@@ -5012,7 +5012,7 @@ function rcHub(){
 /* ===== 갈림길 (자체 설계): 지하 4·9·14…층 진입 때 3개의 길 중 하나를 고르는 선택지. 다음 층은 항상 보스 층이라 "보스를 어떻게 지날지"를 고르는 구조. 효과는 다음 층 하나에만 적용되는 일회성이라 반복 보상 악용이 없고, 새로고침하면 런이 거점부터 다시 시작되어 같은 선택지가 다시 나옵니다. 선택 방식(직접/자동)과 선호 방향은 유물 설정을 그대로 공유합니다 ===== */
 var CR_PATHS=[
   {id:"battle",icon:"⚔️",name:"전투의 길",dir:"공격",desc:"다음 층(보스) 적 체력·공격 +35% · 처치 골드·경험치 +60%",hp:1.35,dmg:1.35,goldB:0.6,xpB:0.6,heal:0,loot:0},
-  {id:"treasure",icon:"💰",name:"보물의 길",dir:"배치",desc:"전리품 즉시 +1개 · 다음 층(보스) 적 체력 -20% · 처치 골드 +25%",hp:0.8,dmg:1,goldB:0.25,xpB:0,heal:0,loot:1},
+  {id:"treasure",icon:"💰",name:"보물의 길",dir:"배치",desc:"다음 층 보스 처치 시 보물 상자 +1개 · 다음 층(보스) 적 체력 -20% · 처치 골드 +25%",hp:0.8,dmg:1,goldB:0.25,xpB:0,heal:0,loot:1},
   {id:"rest",icon:"🔥",name:"휴식의 길",dir:"생존",desc:"즉시 체력 35% 회복 · 다음 층(보스) 적 공격력 -15%",hp:1,dmg:0.85,goldB:0,xpB:0,heal:0.35,loot:0}
 ];
 var CR_PAUSE=false,CR_ACT=null,CR_SEL=null,CR_LOW=false,CRQ=[];
@@ -5033,19 +5033,9 @@ function crPick(){
 function crGain(p,src){
   if(!Xe)return;
   crInit();
-  CR_ACT={floor:Xe.floor+1,hp:p.hp,dmg:p.dmg,goldB:p.goldB,xpB:p.xpB};
+  CR_ACT={floor:Xe.floor+1,hp:p.hp,dmg:p.dmg,goldB:p.goldB,xpB:p.xpB,loot:p.loot};
   it.records.cr++;
   if(p.heal){Xe.hp=Math.min(Xe.maxHp,Xe.hp+Xe.maxHp*p.heal);k3()}
-  if(p.loot){
-    var u=Kl(it);
-    if(u.length){
-      var c=u[Math.floor(Math.random()*u.length)],h=1+(Math.random()<.3?Math.floor(Xe.floor/8):0);
-      h=Math.min(h,13);var y=ho(c,h);
-      if(ks(it,y)){Xe.loot.push(y);rn("💰 보물의 길 전리품: "+bn[y.type].name+" Lv"+y.lv,3000)}
-      else{var L=ma(y);it.gold+=L;rn("💰 보관함이 가득 차 "+bn[c].name+"을(를) "+L+"g에 팔았습니다",3000)}
-      vn();
-    }
-  }
   uo();rcCheck();
   rn((src==="auto"?"🧭 갈림길 자동 선택 · ":"🧭 ")+p.icon+" "+p.name+" — 다음 층(지하 "+CR_ACT.floor+"층 보스) "+p.desc,3200);
   if(Xe.say)Xe.say("갈림길: "+p.name+" 선택");
@@ -5116,14 +5106,24 @@ E4=function(o,t,e,n,i){
   return r;
 };
 /* 보상 배율: 대상 층에서의 처치 골드·경험치에만 적용 */
+function crLootChest(xe){ /* 보물 상자: 보스 처치 보상으로 1회 지급 (kill()의 드롭 규칙 재사용) */
+  var u=Kl(it);if(!u.length)return;
+  var c=u[Math.floor(Math.random()*u.length)],h=1+(Math.random()<.3?Math.floor(xe.floor/8):0);
+  h=Math.min(h,13);var y=ho(c,h);
+  if(ks(it,y)){xe.loot.push(y);rn("💰 보물 상자: "+bn[y.type].name+" Lv"+y.lv,3000)}
+  else{var L=ma(y);it.gold+=L;xe.goldGain+=L;rn("💰 보관함이 가득 차 "+bn[c].name+"을(를) "+L+"g에 팔았습니다",3000)}
+  vn();uo();
+}
 var crKill=la.prototype.kill;
 la.prototype.kill=function(){
-  if(!CR_ACT||!Xe||this.floor!==CR_ACT.floor||(!CR_ACT.goldB&&!CR_ACT.xpB))return crKill.apply(this,arguments);
+  if(!CR_ACT||!Xe||this.floor!==CR_ACT.floor)return crKill.apply(this,arguments);
+  var wasBoss=this.enemy&&this.enemy.boss;
   var g0=this.sv.gold,x0=this.xpGain;
   var r=crKill.apply(this,arguments);
-  var bg=Math.round((this.sv.gold-g0)*CR_ACT.goldB),bx=Math.round((this.xpGain-x0)*CR_ACT.xpB);
+  var bg=Math.round((this.sv.gold-g0)*(CR_ACT.goldB||0)),bx=Math.round((this.xpGain-x0)*(CR_ACT.xpB||0));
   if(bg>0){this.sv.gold+=bg;this.goldGain+=bg}
   if(bx>0){this.sv.hero.xp+=bx;this.xpGain+=bx}
+  if(wasBoss&&CR_ACT.loot){CR_ACT.loot=0;crLootChest(this)}
   return r;
 };
 /* 갈림길 모달이 열려 있으면 런 일시정지 (유물 모달과 같은 방식) */
@@ -5162,6 +5162,55 @@ function crHub(){
     window.__game.crInfo=function(){crInit();return {act:CR_ACT?{floor:CR_ACT.floor,hp:CR_ACT.hp,dmg:CR_ACT.dmg,goldB:CR_ACT.goldB,xpB:CR_ACT.xpB}:null,pause:CR_PAUSE,q:CRQ.slice(),picks:it.records.cr}};
     window.__game.crChoose=function(ix){CR_SEL=CR_PATHS[ix];crConfirm()};  /* 테스트·접근성용 프로그램 선택 (실제 확인 경로를 그대로 탐) */
   }else setTimeout(crEx,150);
+})();
+/* ===== 전투 연출 강화 (자체 설계): DOM/CSS 오버레이만 사용 — Three.js 스테이지는 손대지 않습니다. 보스 등장 배너 강화, 보스 격파 팡파레, 처치 코인 버스트, 레벨업 플래시 ===== */
+var fxLayer=null;
+function fxLy(){if(!fxLayer){fxLayer=document.createElement("div");fxLayer.id="fxl";document.body.appendChild(fxLayer)}return fxLayer}
+/* 금화·빛 조각 버스트: (x,y)에서 n개가 사방으로 퍼지며 사라짐 */
+function fxBurst(x,y,n,big){
+  var p=fxLy();
+  for(var i=0;i<n;i++){
+    var d=document.createElement("div");
+    d.className="fxp"+(big?" big":"")+(i%3===0?" spk":"");
+    var a=Math.random()*Math.PI*2,r=(big?60:36)+Math.random()*(big?90:60);
+    d.style.left=x+"px";d.style.top=y+"px";
+    d.style.setProperty("--dx",Math.cos(a)*r+"px");
+    d.style.setProperty("--dy",(Math.sin(a)*r-30)+"px");
+    if(i%3===0)d.textContent="✦";
+    p.appendChild(d);
+    (function(el){setTimeout(function(){el.remove()},1100)})(d);
+  }
+}
+/* 화면 전체 플래시 (gold=보스 격파·레벨업, red=보스 등장) */
+function fxFlash(cls){
+  var d=document.createElement("div");
+  d.className="fxf "+cls;fxLy().appendChild(d);
+  setTimeout(function(){d.remove()},750);
+}
+/* 보스 배너: 기존 배너를 더 크고 붉게 */
+function fxBossBanner(txt,win){
+  var b=Et("banner");if(!b)return;
+  b.textContent=txt;
+  b.classList.remove("on","boss","bosswin");b.offsetWidth;
+  b.classList.add("on",win?"bosswin":"boss");
+}
+var fxE4=E4;
+E4=function(o,t,e,n,i){
+  var r=fxE4.apply(this,arguments);
+  if(o==="spawn"&&t&&t.boss){fxBossBanner("보스 출현!");fxFlash("red")}
+  if(o==="kill"&&t){
+    var h=ee.enemyHead();
+    if(t.boss){fxBossBanner("보스 격파!",true);fxFlash("gold");fxBurst(h.x,h.y,14,true);ae.levelup()}
+    else fxBurst(h.x,h.y,5,false);
+  }
+  if(o==="levelup")fxFlash("gold");
+  return r;
+};
+/* 검증용 노출 */
+(function fxEx(){
+  if(window.__game){
+    window.__game.fxInfo=function(){var b=Et("banner"),s=b?String(b.className||""):"";if(b&&b.classList){if(b.classList.contains("bosswin"))s+=" bosswin";else if(b.classList.contains("boss"))s+=" boss"}return {layer:!!fxLayer,parts:fxLayer?fxLayer.children.length:0,banner:s}};
+  }else setTimeout(fxEx,150);
 })();
 L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});})();
 /*! Bundled license information:
