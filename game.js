@@ -5138,6 +5138,8 @@ O3=function(){
   CR_ACT=null;CR_SEL=null;CR_PAUSE=false;CRQ.length=0;
   crmEl.classList.remove("on");crmEl.innerHTML="";
   crO3.apply(this,arguments);
+  /* 시작 층이 갈림길 층(4·9·14…)이면 런 시작 즉시 제시 — 진입 방아쇠는 층 "진행" 때만 울려서, 정확히 갈림길 층부터 시작하면 우회되는 문제를 막음. 유물 소급이 열려 있으면 crTrigger가 큐로 미룸 */
+  if(Xe&&Xe.floor>=4&&(Xe.floor-4)%5===0)crTrigger(Xe.floor);
 };
 /* 거점 표시: 갈림길 안내 (기록 섹션 뒤에 이어 붙임) */
 var crGr=gr;
