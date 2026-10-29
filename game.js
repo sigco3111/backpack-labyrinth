@@ -5027,9 +5027,9 @@ Po.xp={name:"숙련",tiers:[
   {n:"전투 감각",d:"경험치 +15%",c:1200,m:{xp:.15}},
   {n:"백전 노장",d:"경험치 +25%",c:8000,m:{xp:.25}}]};
 Po.bls={name:"축복",tiers:[
-  {n:"여행자의 동전",d:"탐험 시작 골드 +80",c:150,m:{startGold:80}},
-  {n:"상인의 축복",d:"탐험 시작 골드 +200",c:1000,m:{startGold:200}},
-  {n:"대륙의 후원",d:"탐험 시작 골드 +500",c:6000,m:{startGold:500}}]};
+  {n:"여행자의 동전",d:"귀환 정산: 완료한 층당 골드 +80",c:150,m:{startGold:80}},
+  {n:"상인의 축복",d:"귀환 정산: 완료한 층당 골드 +200",c:1000,m:{startGold:200}},
+  {n:"대륙의 후원",d:"귀환 정산: 완료한 층당 골드 +500",c:6000,m:{startGold:500}}]};
 var UP_REP={
   atk:[{d:"피해 +6%",m:{dmg:.06}},{d:"피해 +6%",m:{dmg:.06}},{d:"피해 +6%",m:{dmg:.06}},{d:"순환 속도 +3%",m:{speed:.03}},{d:"치명타 +2%",m:{crit:.02}}],
   def:[{d:"받는 피해 -1.5%",m:{take:.015}},{d:"시작 보호막 +20",m:{guard0:20}},{d:"받는 피해 -1.5%",m:{take:.015}},{d:"보호막 한도 +6%",m:{guardCap:.06}},{d:"시작 보호막 +20",m:{guard0:20}}],
@@ -5037,14 +5037,15 @@ var UP_REP={
   eco:[{d:"골드 +12%",m:{gold:.12}},{d:"골드 +12%",m:{gold:.12}},{d:"전리품 확률 +2%",m:{drop:.02}},{d:"골드 +12%",m:{gold:.12}},{d:"골드 +12%",m:{gold:.12}}],
   unl:[{d:"보관함 칸 +16",m:{inv:2}},{d:"전리품 장비 레벨 +1",m:{lootLv:1}},{d:"보관함 칸 +16",m:{inv:2}},{d:"골드 +20%",m:{gold:.2}},{d:"전리품 장비 레벨 +1",m:{lootLv:1}}],
   xp:[{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}}],
-  bls:[{d:"탐험 시작 골드 +150",m:{startGold:150}},{d:"탐험 시작 골드 +150",m:{startGold:150}},{d:"골드 +10%",m:{gold:.1}},{d:"탐험 시작 골드 +150",m:{startGold:150}},{d:"탐험 시작 골드 +150",m:{startGold:150}}]
+  bls:[{d:"완료한 층당 정산 +150",m:{startGold:150}},{d:"완료한 층당 정산 +150",m:{startGold:150}},{d:"골드 +10%",m:{gold:.1}},{d:"완료한 층당 정산 +150",m:{startGold:150}},{d:"완료한 층당 정산 +150",m:{startGold:150}}]
 };
-var UP_REP_BASE={atk:600000,def:600000,sus:600000,eco:600000,unl:600000,xp:400000,bls:400000};
+var UP_REP_BASE={atk:500000,def:500000,sus:500000,eco:500000,unl:500000,xp:300000,bls:300000};
+var UP_REP_MUL=1.3;
 function upTier(cat,i){
   var fixed=Po[cat].tiers;
   if(i<fixed.length)return fixed[i];
   var k=i-fixed.length,steps=UP_REP[cat],st=steps[k%steps.length];
-  return {n:Po[cat].name+" 단련 "+(k+1),d:st.d,c:Math.round(UP_REP_BASE[cat]*Math.pow(1.5,k)/50)*50,m:st.m,rep:true};
+  return {n:Po[cat].name+" 단련 "+(k+1),d:st.d,c:Math.round(UP_REP_BASE[cat]*Math.pow(UP_REP_MUL,k)/50)*50,m:st.m,rep:true};
 }
 /* Do 재정의: 반복 단계 합산 + 포화 상한 (고정 단계 범위에서는 기존과 동일 값) */
 Do=function(o){
@@ -5052,6 +5053,7 @@ Do=function(o){
   for(var e in Po){var n=o.up[e]||0;for(var i=0;i<n;i++){var a=upTier(e,i).m;for(var r in a)t[r]+=a[r]}}
   t.take=Math.min(t.take,.55);t.speed=Math.min(t.speed,1);t.crit=Math.min(t.crit,.6);
   t.postHeal=Math.min(t.postHeal,.6);t.drop=Math.min(t.drop,.5);t.boss=Math.min(t.boss,3);
+  if(o===it&&it.upSub){t.dmg+=it.upSub.dmg||0;t.hp+=it.upSub.hp||0}
   t.lootLv=Math.min(t.lootLv,5);t.inv=Math.min(t.inv,6);
   return t;
 };
@@ -5072,13 +5074,54 @@ la.prototype.kill=function(){
   }catch(e){}
   return r;
 };
-/* 축복: 탐험 시작 골드 */
-var upO3=O3;
+/* 축복: 귀환 정산 — 실제로 완료한 층수에 비례해 지급 (시작 직후 귀환 반복으로는 얻을 수 없음) */
+var upRunStart=0,upO3=O3;
 O3=function(){
   upO3.apply(this,arguments);
-  try{var sg=Do(it).startGold;if(sg>0){it.gold+=sg;rn("✨ 축복: 탐험 시작 골드 +"+sg,2400);uo()}}catch(e){}
+  try{upRunStart=it.start}catch(e){upRunStart=0}
 };
-/* 상점 UI: 고정 단계를 마친 항목은 반복 강화 카드로 교체 */
+var upP3=P3;
+P3=function(o){
+  try{
+    var sg=Do(it).startGold;
+    if(sg>0&&upRunStart>0&&Xe){
+      var cleared=Math.max(0,Xe.floor-upRunStart),bonus=Math.round(sg*cleared);
+      if(bonus>0){
+        it.gold+=bonus;uo();
+        var rs=Et("result");
+        upP3.apply(this,arguments);
+        try{var rs2=Et("result");if(rs2)rs2.innerHTML+='<div class="sub" style="margin-top:6px">✨ 축복 정산: 완료 '+cleared+'층 × '+sg.toLocaleString()+'g = <b>+'+bonus.toLocaleString()+'g</b></div>'}catch(e){}
+        return;
+      }
+    }
+  }catch(e){}
+  upP3.apply(this,arguments);
+};
+/* 상점 UI: 고정 단계를 마친 항목은 반복 강화 카드로 교체. 포화 상한 도달분은 실효 기준으로 표시하고, 전부 상한이면 대체 효과로 자동 전환 */
+var UP_CAPS={take:.55,speed:1,crit:.6,postHeal:.6,drop:.5,boss:3,lootLv:5,inv:6};
+var UP_KFMT={
+  dmg:["피해",1,1],speed:["순환 속도",1,1],crit:["치명타",1,1],take:["받는 피해",1,-1],postHeal:["전투 후 회복",1,1],
+  heal:["치유 효과",1,1],gold:["골드",1,1],drop:["전리품 확률",1,1],guardCap:["보호막 한도",1,1],xp:["경험치",1,1],
+  guard0:["시작 보호막",0,1],hp:["최대 체력",0,1],inv:["보관함 칸",0,8],boss:["보스 전리품",0,1],lootLv:["전리품 장비 레벨",0,1],startGold:["층당 정산 골드",0,1]
+};
+function upRawSums(){
+  var sums={};for(var e in Po){var n=it.up[e]||0;for(var i=0;i<n;i++){var a=upTier(e,i).m;for(var r in a)sums[r]=(sums[r]||0)+a[r]}}
+  return sums;
+}
+function upEffDesc(cat,idx){
+  var m=upTier(cat,idx).m,sums=upRawSums(),parts=[];
+  for(var k in m){
+    var f=UP_KFMT[k];if(!f)continue;
+    var now=sums[k]||0,after=now+m[k],eff;
+    if(k in UP_CAPS){var dn=k==="postHeal"?Math.min(now,UP_CAPS[k]):Math.min(now,UP_CAPS[k]);eff=Math.min(after,UP_CAPS[k])-dn}
+    else eff=m[k];
+    if(k==="postHeal"){var base=.08;now+=base;after+=base;eff=Math.min(after,UP_CAPS[k])-Math.min(now,UP_CAPS[k])}
+    if(Math.abs(eff)<1e-9)continue;
+    if(f[1]===1){var pc=Math.round(eff*1000)/10;parts.push(f[0]+(f[2]<0?" -":" +")+pc+"%")}
+    else{var fl=eff*(f[2]||1);parts.push(f[0]+" +"+Math.round(fl*10)/10)}
+  }
+  return parts;
+}
 function upShopPatch(){
   var t=Et("hub");if(!t||!t.querySelectorAll)return;
   var cards=t.querySelectorAll(".up"),cats=Object.keys(Po);
@@ -5088,27 +5131,32 @@ function upShopPatch(){
       if(p<r.tiers.length)return;
       var h3=card.querySelector&&card.querySelector("h3");
       if(h3&&h3.textContent!==r.name)return;
-      var k=p-r.tiers.length,nt=upTier(cat,p);
+      var k=p-r.tiers.length,nt=upTier(cat,p),parts=upEffDesc(cat,p),sub=false,desc;
+      if(parts.length===0){sub=true;desc="피해 +3% · 최대 체력 +25 <span class='nx'>(상한 도달분 대체 적용)</span>"}
+      else desc=parts.join(" · ");
       var pips="";for(var c=0;c<r.tiers.length;c++)pips+='<s class="on"></s>';
       card.innerHTML='<h3>'+r.name+'</h3><div class="pips">'+pips+'</div>'+
-        '<div><b>'+nt.n+'</b> <span class="nx">'+nt.d+'</span></div>'+
+        '<div><b>'+nt.n+'</b> <span class="nx">'+desc+'</span></div>'+
         '<button class="btn sm pri" data-uprep="'+cat+'" '+(it.gold>=nt.c?"":"disabled")+' style="margin-top:5px">'+nt.c.toLocaleString()+'g 강화</button>'+
-        '<div class="nx" style="margin-top:3px">반복 강화 '+k+'회 완료 · 확률/감소류는 상한에서 자동 제한</div>';
+        '<div class="nx" style="margin-top:3px">반복 강화 '+k+'회 완료 · 표시 효과는 상한 적용 후 실효 기준</div>';
     })(cards[idx],cats[idx]);
   }
   t.querySelectorAll("[data-uprep]").forEach(function(a){
     a.onclick=function(){
       var cat=a.dataset.uprep,p=it.up[cat]||0,nt=upTier(cat,p);
       if(it.gold<nt.c)return;
-      it.gold-=nt.c;it.up[cat]=p+1;ae.buy();rn(nt.n+" 완료");uo();vn();gr("");
+      var parts=upEffDesc(cat,p);
+      it.gold-=nt.c;
+      if(parts.length===0){it.upSub=it.upSub||{dmg:0,hp:0};it.upSub.dmg+=.03;it.upSub.hp+=25}
+      it.up[cat]=p+1;ae.buy();rn(nt.n+" 완료");uo();vn();gr("");
     };
   });
 }
 var upGr=gr;
-gr=function(o){if(it&&it.up){if(it.up.xp===undefined)it.up.xp=0;if(it.up.bls===undefined)it.up.bls=0}upGr.apply(this,arguments);try{upShopPatch()}catch(e){}};
+gr=function(o){if(it&&it.up){if(it.up.xp===undefined)it.up.xp=0;if(it.up.bls===undefined)it.up.bls=0;if(!it.upSub)it.upSub={dmg:0,hp:0}}upGr.apply(this,arguments);try{upShopPatch()}catch(e){}};
 /* 검증용 노출 */
 (function upEx(){
-  if(window.__game){window.__game.upTier=upTier;window.__game.upMods=function(){return Do(it)}}
+  if(window.__game){window.__game.upTier=upTier;window.__game.upMods=function(){return Do(it)};window.__game.endRun=function(o){P3(o)}}
   else setTimeout(upEx,150);
 })();
 /* 검증용 노출 */
