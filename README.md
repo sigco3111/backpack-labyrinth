@@ -42,7 +42,7 @@
 
 ## 기술
 
-- Three.js (WebGL) + 순수 JS, esbuild로 번들. 3D 모델은 glb를 한 파일(`6-game.js`, GitHub 웹 업로드 때 파일명 앞에 번호가 붙어 그대로 둠)에 내장합니다.
+- Three.js (WebGL) + 순수 JS, esbuild로 번들. 3D 모델은 glb를 한 파일(`1-game.js`, GitHub 웹 업로드 때 파일명 앞에 번호가 붙어 그대로 둠)에 내장합니다.
 - 게임 규칙(`core.js`)은 렌더링과 분리되어 있어 Node에서 시뮬레이션으로 밸런스를 검증했습니다.
 - 저장: localStorage `bp-labyrinth-v1`.
 
