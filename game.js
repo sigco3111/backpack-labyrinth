@@ -4953,7 +4953,7 @@ function fzSim(A,B){
     var F=bn[A.type].fused?A:B;
     rm(A);rm(B);
     var F2={type:F.type,lv:Math.min(13,F.lv+1),rot:F.rot,x:F.x,y:F.y,id:"sim"};
-    if(F.x>=0)board.push(F2);else inv.push(F2);
+    if(da(it,F)==="board")board.push(F2);else inv.push(F2);
     c1=bn[F.type].cells.length;
   }else{
     var plan=fzPlan(A,B,R.type);
@@ -4964,7 +4964,9 @@ function fzSim(A,B){
     c1=bn[R.type].cells.length;
   }
   var v1=fzVal(board,inv);
-  return {ok:true,reforge:!!R.reforge,type:R.type,lv:R.lv,v0:v0,v1:v1,delta:v1-v0,c0:c0,c1:c1};
+  /* 칸 절약 가치: 결과가 재료보다 작아지면 빈 칸에 다른 장비를 놓을 수 있으므로 칸당 기본 가치(레벨 배율 연동)를 더함 */
+  var cellW=2*Math.pow(Wl,R.lv-1);
+  return {ok:true,reforge:!!R.reforge,type:R.type,lv:R.lv,v0:v0,v1:v1,delta:v1-v0+(c0-c1)*cellW,c0:c0,c1:c1};
 }
 function fzBest(){
   var pool=it.board.concat(it.inv).filter(function(J){return !J.lock});
@@ -4994,7 +4996,7 @@ fzModal=function(open){
   var div=document.createElement("div");div.id="fzcmp";
   var h="";
   if(sim.ok){
-    h+='<div class="fzcmp-t">예상 전후 비교</div><div>'+fzLine2(sim)+'</div><div class="dim" style="font-size:11px">배치 효과 포함 추정치 · 실제 피해량 아님</div>';
+    h+='<div class="fzcmp-t">예상 전후 비교</div><div>'+fzLine2(sim)+'</div><div class="dim" style="font-size:11px">배치 효과·칸 절약 포함 추정치 · 실제 피해량 아님 · 실전 이득 보장 아님</div>';
     if(sim.delta<=0)h+='<div class="fzcmp-bad">주의: 이 조합은 현재보다 추정 점수가 낮아질 수 있습니다</div>';
     var best=fzBest();
     if(best&&best.sim.delta>sim.delta+0.05&&!(best.A===A&&best.B===B)&&!(best.A===B&&best.B===A)){
@@ -5683,11 +5685,92 @@ try{
 (function enEx2(){
   if(window.__game){
     window.__game.enDeep=function(){return Object.keys(EN_DEEP)};
-    window.__game.ver="v31-r9";
+    window.__game.ver="v32-r10";
   }else setTimeout(enEx2,150);
 })();
 
-L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});})();
+L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});
+/* ===== 자동 융합 실행 (R10, 자체 설계 확장): 추천 엔진(fzBest/fzSim)이 고른 양수 개선 조합을 연쇄 계획으로 미리 보여주고, 사용자가 실행 버튼을 누를 때만 실제 fzDo로 순차 적용. 잠금 장비 제외(fzBest 자체 규칙), 추정 점수가 오르는 조합만, 최대 12단계. 아이템 2개→1개 소모일 뿐 재화 생성은 없음 ===== */
+function fzCloneIt(I){return{type:I.type,lv:I.lv,rot:I.rot,x:I.x,y:I.y,id:I.id,lock:I.lock}}
+function fzChainPlan(maxN){
+  maxN=maxN||12;
+  var rb=it.board,ri=it.inv;
+  var board=rb.map(fzCloneIt),inv=ri.map(fzCloneIt);
+  var steps=[];
+  it.board=board;it.inv=inv;
+  try{
+    for(var n=0;n<maxN;n++){
+      var best=fzBest();
+      if(!best)break;
+      var A=best.A,B=best.B,sim=best.sim;
+      var plan=null;
+      if(!sim.reforge){
+        plan=fzPlan(A,B,sim.type);
+        if(!plan)break;
+      }
+      steps.push({aId:A.id,bId:B.id,aName:bn[A.type].name,aLv:A.lv,bName:bn[B.type].name,bLv:B.lv,reforge:!!sim.reforge,type:sim.type,lv:sim.lv,delta:sim.delta,c0:sim.c0,c1:sim.c1,resId:sim.reforge?(bn[A.type].fused?A:B).id:("afsim"+n)});
+      var rm=function(J){var i=board.indexOf(J);if(i>=0)board.splice(i,1);i=inv.indexOf(J);if(i>=0)inv.splice(i,1)};
+      if(sim.reforge){
+        var F=bn[A.type].fused?A:B,X=bn[A.type].fused?B:A;
+        rm(X);F.lv=Math.min(13,F.lv+1);
+      }else{
+        rm(A);rm(B);
+        var res={type:sim.type,lv:sim.lv,rot:plan.rot||0,x:-1,y:-1,id:"afsim"+n};
+        if(plan.w==="board"){res.x=plan.x;res.y=plan.y;board.push(res)}else inv.push(res);
+      }
+    }
+  }finally{it.board=rb;it.inv=ri}
+  return steps;
+}
+function fzFindById(id){
+  var all=it.board.concat(it.inv);
+  for(var i=0;i<all.length;i++)if(all[i].id===id)return all[i];
+  return null;
+}
+function fzAutoRun(steps,onlyOne){
+  var n=Math.min(onlyOne?1:steps.length,steps.length),done=0,skip=0;
+  var idMap={};
+  for(var i=0;i<n;i++){
+    var s=steps[i],A=fzFindById(idMap[s.aId]||s.aId),B=fzFindById(idMap[s.bId]||s.bId);
+    if(!A||!B){skip++;continue}
+    var sim=fzSim(A,B);
+    if(!sim.ok||sim.delta<=0){skip++;continue}
+    if(fzDo(A,B)){done++;if(!s.reforge&&Be)idMap[s.resId]=Be.id}else skip++;
+  }
+  return{done:done,skip:skip};
+}
+function fzAutoOpen(){
+  if(FZ.on){ae.bad();rn("융합을 고르는 중에는 추천 일괄 융합을 쓸 수 없어요");return}
+  var steps=fzChainPlan(12);
+  if(!steps.length){ae.bad();rn("지금 추천할 수 있는 융합 조합이 없습니다",2600);return}
+  var m=Et("fza");
+  if(!m){m=document.createElement("div");m.id="fza";document.body.appendChild(m);
+    m.addEventListener("pointerdown",function(ev){if(ev.target===m)m.classList.remove("on")});}
+  var r10=function(x){return Math.round(x*10)/10};
+  var tot=0;
+  var h='<div class="fzbox"><h3>추천 일괄 융합 계획 ('+steps.length+'단계)</h3>';
+  h+='<div class="fzs"><span class="dim">추천 엔진이 추정 점수가 오르는 조합만 골랐습니다. 잠금한 장비는 쓰지 않습니다. 상시 자동 실행이 아니라, 이 화면에서 「모두 실행」 또는 「한 단계만」을 눌러 승인할 때만 실행됩니다. 누르기 전에는 아무것도 바뀌지 않습니다.</span></div>';
+  for(var i=0;i<steps.length;i++){
+    var s=steps[i];tot+=s.delta;
+    h+='<div class="fzs"><b>'+(i+1)+'.</b> '+s.aName+' Lv'+s.aLv+' + '+s.bName+' Lv'+s.bLv+' → '+(s.reforge?'재련: ':'')+bn[s.type].name+' Lv'+s.lv+' <span style="color:var(--grn)">+'+r10(s.delta)+'</span></div>';
+  }
+  h+='<div class="fzs">합계 추정 <b style="color:var(--gold)">+'+r10(tot)+'</b> · 칸 '+steps[0].c0+' → '+steps[steps.length-1].c1+'<br><span class="dim">배치 효과·칸 절약 포함 추정치 · 실제 피해량 아님 · 실전 이득 보장 아님</span></div>';
+  h+='<div class="fzbtns"><button class="btn pri" id="fzaAll">모두 실행</button><button class="btn" id="fzaOne">한 단계만</button><button class="btn" id="fzaNo">취소</button></div></div>';
+  m.innerHTML=h;m.classList.add("on");
+  Et("fzaNo").onclick=function(){m.classList.remove("on")};
+  Et("fzaAll").onclick=function(){m.classList.remove("on");var r=fzAutoRun(steps,false);rn("일괄 융합 "+r.done+"건 완료"+(r.skip?" · 건너뜀 "+r.skip+"건":""),3000)};
+  Et("fzaOne").onclick=function(){m.classList.remove("on");var r=fzAutoRun(steps,true);rn("일괄 융합 1단계 "+(r.done?"완료":"건너뜀"),2600)};
+}
+(function fzaEx(){
+  var b=Et("bAutoFuse");if(b)b.onclick=fzAutoOpen;
+  if(window.__game){
+    window.__game.fzChainPlan=fzChainPlan;
+    window.__game.fzAutoRun=fzAutoRun;
+    window.__game.fzAutoOpen=fzAutoOpen;
+  }else setTimeout(fzaEx,150);
+})();
+
+})();
 /*! Bundled license information:
 
 three/build/three.core.js:
