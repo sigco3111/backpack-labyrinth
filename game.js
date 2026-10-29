@@ -5021,6 +5021,96 @@ if(bFuse0&&bFuse0.onclick){
     }
   };
 }
+/* ===== 영구 강화 확장 (자체 설계): 고정 10단계·기존 저장은 그대로, 이후 무한 반복 단계 + 신규 2종(숙련/축복). 포화 필요 값은 Do에서 상한 처리 ===== */
+Po.xp={name:"숙련",tiers:[
+  {n:"견습",d:"경험치 +10%",c:200,m:{xp:.1}},
+  {n:"전투 감각",d:"경험치 +15%",c:1200,m:{xp:.15}},
+  {n:"백전 노장",d:"경험치 +25%",c:8000,m:{xp:.25}}]};
+Po.bls={name:"축복",tiers:[
+  {n:"여행자의 동전",d:"탐험 시작 골드 +80",c:150,m:{startGold:80}},
+  {n:"상인의 축복",d:"탐험 시작 골드 +200",c:1000,m:{startGold:200}},
+  {n:"대륙의 후원",d:"탐험 시작 골드 +500",c:6000,m:{startGold:500}}]};
+var UP_REP={
+  atk:[{d:"피해 +6%",m:{dmg:.06}},{d:"피해 +6%",m:{dmg:.06}},{d:"피해 +6%",m:{dmg:.06}},{d:"순환 속도 +3%",m:{speed:.03}},{d:"치명타 +2%",m:{crit:.02}}],
+  def:[{d:"받는 피해 -1.5%",m:{take:.015}},{d:"시작 보호막 +20",m:{guard0:20}},{d:"받는 피해 -1.5%",m:{take:.015}},{d:"보호막 한도 +6%",m:{guardCap:.06}},{d:"시작 보호막 +20",m:{guard0:20}}],
+  sus:[{d:"최대 체력 +50",m:{hp:50}},{d:"최대 체력 +50",m:{hp:50}},{d:"전투 후 회복 +2%",m:{postHeal:.02}},{d:"최대 체력 +50",m:{hp:50}},{d:"치유 효과 +8%",m:{heal:.08}}],
+  eco:[{d:"골드 +12%",m:{gold:.12}},{d:"골드 +12%",m:{gold:.12}},{d:"전리품 확률 +2%",m:{drop:.02}},{d:"골드 +12%",m:{gold:.12}},{d:"골드 +12%",m:{gold:.12}}],
+  unl:[{d:"보관함 칸 +16",m:{inv:2}},{d:"전리품 장비 레벨 +1",m:{lootLv:1}},{d:"보관함 칸 +16",m:{inv:2}},{d:"골드 +20%",m:{gold:.2}},{d:"전리품 장비 레벨 +1",m:{lootLv:1}}],
+  xp:[{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}},{d:"경험치 +10%",m:{xp:.1}}],
+  bls:[{d:"탐험 시작 골드 +150",m:{startGold:150}},{d:"탐험 시작 골드 +150",m:{startGold:150}},{d:"골드 +10%",m:{gold:.1}},{d:"탐험 시작 골드 +150",m:{startGold:150}},{d:"탐험 시작 골드 +150",m:{startGold:150}}]
+};
+var UP_REP_BASE={atk:600000,def:600000,sus:600000,eco:600000,unl:600000,xp:400000,bls:400000};
+function upTier(cat,i){
+  var fixed=Po[cat].tiers;
+  if(i<fixed.length)return fixed[i];
+  var k=i-fixed.length,steps=UP_REP[cat],st=steps[k%steps.length];
+  return {n:Po[cat].name+" 단련 "+(k+1),d:st.d,c:Math.round(UP_REP_BASE[cat]*Math.pow(1.5,k)/50)*50,m:st.m,rep:true};
+}
+/* Do 재정의: 반복 단계 합산 + 포화 상한 (고정 단계 범위에서는 기존과 동일 값) */
+Do=function(o){
+  var t={dmg:0,speed:0,crit:0,take:0,guard0:0,guardCap:0,hp:0,postHeal:.08,heal:0,gold:0,drop:0,boss:0,pool:0,inv:0,lootLv:0,xp:0,startGold:0};
+  for(var e in Po){var n=o.up[e]||0;for(var i=0;i<n;i++){var a=upTier(e,i).m;for(var r in a)t[r]+=a[r]}}
+  t.take=Math.min(t.take,.55);t.speed=Math.min(t.speed,1);t.crit=Math.min(t.crit,.6);
+  t.postHeal=Math.min(t.postHeal,.6);t.drop=Math.min(t.drop,.5);t.boss=Math.min(t.boss,3);
+  t.lootLv=Math.min(t.lootLv,5);t.inv=Math.min(t.inv,6);
+  return t;
+};
+/* 숙련: 경험치 보너스 (kill 래퍼 체인) */
+var upKill=la.prototype.kill;
+la.prototype.kill=function(){
+  var r=upKill.apply(this,arguments);
+  try{
+    var t=this.sv,xm=Do(t).xp;
+    if(xm>0&&this.enemy){
+      var a=Math.round((8+4*this.floor)*(this.enemy.boss?3:1)*xm);
+      if(a>0){
+        t.hero.xp+=a;this.xpGain+=a;
+        var l=0;while(t.hero.xp>=ua(t.hero.lv)){t.hero.xp-=ua(t.hero.lv);t.hero.lv++;l++}
+        if(l){this.maxHp=sa(t);this.hp=Math.min(this.maxHp,this.hp+10*l);this.emit("levelup",t.hero.lv);this.say("영웅 Lv"+t.hero.lv+"!")}
+      }
+    }
+  }catch(e){}
+  return r;
+};
+/* 축복: 탐험 시작 골드 */
+var upO3=O3;
+O3=function(){
+  upO3.apply(this,arguments);
+  try{var sg=Do(it).startGold;if(sg>0){it.gold+=sg;rn("✨ 축복: 탐험 시작 골드 +"+sg,2400);uo()}}catch(e){}
+};
+/* 상점 UI: 고정 단계를 마친 항목은 반복 강화 카드로 교체 */
+function upShopPatch(){
+  var t=Et("hub");if(!t||!t.querySelectorAll)return;
+  var cards=t.querySelectorAll(".up"),cats=Object.keys(Po);
+  for(var idx=0;idx<cards.length&&idx<cats.length;idx++){
+    (function(card,cat){
+      var r=Po[cat],p=it.up[cat]||0;
+      if(p<r.tiers.length)return;
+      var h3=card.querySelector&&card.querySelector("h3");
+      if(h3&&h3.textContent!==r.name)return;
+      var k=p-r.tiers.length,nt=upTier(cat,p);
+      var pips="";for(var c=0;c<r.tiers.length;c++)pips+='<s class="on"></s>';
+      card.innerHTML='<h3>'+r.name+'</h3><div class="pips">'+pips+'</div>'+
+        '<div><b>'+nt.n+'</b> <span class="nx">'+nt.d+'</span></div>'+
+        '<button class="btn sm pri" data-uprep="'+cat+'" '+(it.gold>=nt.c?"":"disabled")+' style="margin-top:5px">'+nt.c.toLocaleString()+'g 강화</button>'+
+        '<div class="nx" style="margin-top:3px">반복 강화 '+k+'회 완료 · 확률/감소류는 상한에서 자동 제한</div>';
+    })(cards[idx],cats[idx]);
+  }
+  t.querySelectorAll("[data-uprep]").forEach(function(a){
+    a.onclick=function(){
+      var cat=a.dataset.uprep,p=it.up[cat]||0,nt=upTier(cat,p);
+      if(it.gold<nt.c)return;
+      it.gold-=nt.c;it.up[cat]=p+1;ae.buy();rn(nt.n+" 완료");uo();vn();gr("");
+    };
+  });
+}
+var upGr=gr;
+gr=function(o){if(it&&it.up){if(it.up.xp===undefined)it.up.xp=0;if(it.up.bls===undefined)it.up.bls=0}upGr.apply(this,arguments);try{upShopPatch()}catch(e){}};
+/* 검증용 노출 */
+(function upEx(){
+  if(window.__game){window.__game.upTier=upTier;window.__game.upMods=function(){return Do(it)}}
+  else setTimeout(upEx,150);
+})();
 /* 검증용 노출 */
 (function fzEx(){
   if(window.__game){window.__game.fzSim=fzSim;window.__game.fzBest=fzBest}
