@@ -4978,7 +4978,7 @@ function fzBest(){
 function fzLine2(sim){
   var r10=function(x){return Math.round(x*10)/10};
   var d=r10(sim.delta),ds=(d>=0?"+":"")+d;
-  return "전투 가치 "+r10(sim.v0)+" → "+r10(sim.v1)+" ("+ds+") · 칸 "+sim.c0+" → "+sim.c1;
+  return "추정 점수 "+r10(sim.v0)+" → "+r10(sim.v1)+" ("+ds+") · 칸 "+sim.c0+" → "+sim.c1;
 }
 /* 모달 비교 + 더 나은 추천 표시 */
 var fzModal0=fzModal;
@@ -4993,8 +4993,8 @@ fzModal=function(open){
   var div=document.createElement("div");div.id="fzcmp";
   var h="";
   if(sim.ok){
-    h+='<div class="fzcmp-t">예상 전후 비교</div><div>'+fzLine2(sim)+"</div>";
-    if(sim.delta<=0)h+='<div class="fzcmp-bad">주의: 이 조합은 현재보다 전투 가치가 낮아질 수 있습니다</div>';
+    h+='<div class="fzcmp-t">예상 전후 비교</div><div>'+fzLine2(sim)+'</div><div class="dim" style="font-size:11px">배치 효과 포함 추정치 · 실제 피해량 아님</div>';
+    if(sim.delta<=0)h+='<div class="fzcmp-bad">주의: 이 조합은 현재보다 추정 점수가 낮아질 수 있습니다</div>';
     var best=fzBest();
     if(best&&best.sim.delta>sim.delta+0.05&&!(best.A===A&&best.B===B)&&!(best.A===B&&best.B===A)){
       h+='<div class="fzcmp-rec">더 나은 추천: '+bn[best.A.type].name+" Lv"+best.A.lv+" + "+bn[best.B.type].name+" Lv"+best.B.lv+" ("+(best.sim.delta>=0?"+":"")+(Math.round(best.sim.delta*10)/10)+') <button type="button" id="fzcmpGo">이 조합으로</button></div>';
