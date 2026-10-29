@@ -4468,6 +4468,7 @@ var adjVn=vn;vn=function(){adjVn.apply(this,arguments);adjPaint()};
 var adjX3=x3;
 x3=function(){
   adjX3.apply(this,arguments);
+  adjPaint();
   if(FZ.on||ui!=null)return;
   var o=Et("tip");if(!o)return;
   if(!Be||!da(it,Be)){
