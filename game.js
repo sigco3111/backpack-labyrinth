@@ -4435,7 +4435,7 @@ function fzModal(open){
   else if(!plan)note='<span style="color:#ff8a80">\uB193\uC744 \uC790\uB9AC\uAC00 \uC5C6\uC5B4 \uC735\uD569\uD560 \uC218 \uC5C6\uC5B4\uC694. \uCE78\uC744 \uBE44\uC6B4 \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.</span>';
   else if(plan.w==="board")note='<span class="dim">\uC7AC\uB8CC\uAC00 \uC788\uB358 \uC790\uB9AC \uADFC\uCC98 \uBC30\uB0AD\uC5D0 \uC790\uB3D9\uC73C\uB85C \uB193\uC785\uB2C8\uB2E4.</span>';
   else note=plan.fromBoard?'<span style="color:#ffd27a">\uBC30\uB0AD\uC5D0 \uB193\uC744 \uC790\uB9AC\uAC00 \uC5C6\uC5B4 \uBCF4\uAD00\uD568\uC73C\uB85C \uB4E4\uC5B4\uAC11\uB2C8\uB2E4.</span>':'<span class="dim">\uBCF4\uAD00\uD568\uC5D0 \uB4E4\uC5B4\uAC11\uB2C8\uB2E4.</span>';
-  h+='<div class="fzs">'+note+'<br><span class="dim">\u300C\uC735\uD569\uD558\uAE30\u300D\uB97C \uB204\uB974\uAE30 \uC804\uC5D0\uB294 \uC544\uBB34\uAC83\uB3C4 \uC0AC\uB77C\uC9C0\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.</span></div>';
+  h+='<div class="fzs">'+note+'<br><span class="dim">'+(R.reforge?'\u300C\uC7AC\uB828\uD558\uAE30':'\u300C\uC735\uD569\uD558\uAE30')+'\u300D\uB97C \uB204\uB974\uAE30 \uC804\uC5D0\uB294 \uC544\uBB34\uAC83\uB3C4 \uC0AC\uB77C\uC9C0\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.</span></div>';
   h+='<div class="fzbtns"><button class="btn pri" id="fzOk"'+(plan?'':' disabled')+'>'+(R.reforge?'\uC7AC\uB828\uD558\uAE30':'\uC735\uD569\uD558\uAE30')+'</button><button class="btn" id="fzNo">\uB2E4\uB978 \uC7AC\uB8CC \uACE0\uB974\uAE30</button></div></div>';
   m.innerHTML=h;m.classList.add("on");
   Et("fzNo").onclick=function(){fzModal(false);FZ.b=null;Be=FZ.a;V3();x3()};
