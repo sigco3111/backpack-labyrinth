@@ -6012,6 +6012,95 @@ window.__svSafe={blocked:()=>_svBlock,status:()=>_svStatus};
   };
 })();
 
+
+/* v41: 결과 화면 「거점으로 돌아가기」 자가복구 가드 + 경험치 게이지 표시 */
+(function(){
+  /* 1) 결과 버튼 자가복구: 결과 화면이 떠 있는 동안 버튼을 가리는 포인터 차단 요소를 제거 */
+  if(typeof P3==="function"){
+    var p3v41=P3;
+    P3=function(o){
+      var r=p3v41.apply(this,arguments);
+      try{
+        var ticks=[150,600,1500,3000];
+        ticks.forEach(function(ms){
+          setTimeout(function(){
+            try{
+              if(li!=="result")return;
+              var b=document.getElementById("bHome");
+              if(!b)return;
+              var q=b.getBoundingClientRect();
+              var el=document.elementFromPoint(q.left+q.width/2,q.top+q.height/2);
+              if(el&&el!==b&&!(el.closest&&el.closest("#result"))){
+                var pe=getComputedStyle(el).pointerEvents;
+                if(pe!=="none"){
+                  console.warn("[v41] bHome covered by",el.id||el.className||el.tagName,"-> pointerEvents none");
+                  el.style.pointerEvents="none";
+                }
+              }
+            }catch(_){}
+          },ms);
+        });
+      }catch(_){}
+      return r;
+    };
+  }
+  /* 2) 경험치 게이지: 탐험 HUD(herobar) + 거점 영웅 스탯 */
+  try{
+    var st=document.createElement("style");
+    st.textContent=
+      ".xpg{height:9px;margin-top:3px}"+
+      ".xpg>i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#7c5cff,#b18cff);border-radius:6px;transition:width .25s}"+
+      ".xpg>span{position:absolute;left:0;right:0;top:-14px;font-size:10px;color:#cdc6ff;text-align:right;text-shadow:0 1px 2px #000}"+
+      ".stat .xp{height:9px;border-radius:6px;background:rgba(0,0,0,.6);border:1px solid #000;overflow:hidden;position:relative;margin-top:5px}"+
+      ".stat .xp>i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#b18cff);border-radius:6px}"+
+      ".stat .xp>u{position:absolute;left:0;right:0;top:-1px;font-size:9px;line-height:11px;color:#e6e1ff;text-align:center;text-decoration:none;text-shadow:0 1px 2px #000}";
+    document.head.appendChild(st);
+    var hb=document.getElementById("herobar");
+    if(hb&&!document.getElementById("hxpbar")){
+      var d=document.createElement("div");
+      d.className="bar xpg";
+      d.innerHTML='<i id="hxpbar" style="width:0%"></i><span id="hxptext"></span>';
+      hb.appendChild(d);
+    }
+    var xpLast="";
+    function xpUpd(){
+      try{
+        var bar=document.getElementById("hxpbar");
+        if(!bar)return;
+        var need=ua(it.hero.lv), cur=it.hero.xp;
+        var key=cur+"/"+need;
+        if(key===xpLast)return; xpLast=key;
+        bar.style.width=Math.min(100,cur/need*100)+"%";
+        var tx=document.getElementById("hxptext");
+        if(tx)tx.textContent="경험치 "+cur+" / "+need;
+      }catch(_){}
+    }
+    if(typeof k3==="function"){
+      var k3v41=k3;
+      k3=function(){var r=k3v41.apply(this,arguments);xpUpd();return r};
+    }
+    xpUpd();
+    /* 거점 스탯의 기존 .xp 바에 수치 표시 추가 */
+    if(typeof gr==="function"){
+      var grv41=gr;
+      gr=function(){
+        var r=grv41.apply(this,arguments);
+        try{
+          var x=document.querySelector("#hub .stat .xp");
+          if(x&&!x.querySelector("u")){
+            var u=document.createElement("u");
+            x.appendChild(u);
+          }
+          var u2=document.querySelector("#hub .stat .xp u");
+          if(u2)u2.textContent=it.hero.xp+" / "+ua(it.hero.lv);
+          xpLast="";xpUpd();
+        }catch(_){}
+        return r;
+      };
+    }
+  }catch(_){}
+})();
+
 })();
 /*! Bundled license information:
 
