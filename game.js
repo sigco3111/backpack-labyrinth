@@ -4774,7 +4774,7 @@ var RL_FALL=[
   {id:"cache",dir:"공통",icon:"📦",name:"보급 궤짝",desc:"즉시 골드 +400",max:99,goldNow:400}
 ];
 var RL_ALL=RL_POOL.concat(RL_FALL);
-function rlInit(){it.relics=it.relics||{owned:{},claimed:{}}}
+function rlInit(){it.relics=it.relics||{owned:{},claimed:{}};var R=it.relics;R.mode=R.mode||"manual";R.pref=R.pref||"균형";R.autoLog=R.autoLog||[]}
 rlInit();
 function rlCount(id){return (it.relics&&it.relics.owned[id])||0}
 function rlMod(k){var s=0;for(var i=0;i<RL_ALL.length;i++){var r=RL_ALL[i];if(r.m&&r.m[k])s+=r.m[k]*rlCount(r.id)}return s}
@@ -4792,7 +4792,53 @@ adjM=function(sv,J){var v=rlAdjM(sv,J);return sv===it&&v>1?v*rlAdjMul():v};
 /* 진행 후크: 층 진입(E4 floor 이벤트) · 런 시작(O3, 이미 지나간 이정표 소급) · 선택 중 전투 일시정지(la.update) */
 var RLQ=[],RL_PAUSE=false,RL_SEL=null;
 function rlEnqueue(f){rlInit();if(RLQ.indexOf(f)<0&&!it.relics.claimed[f])RLQ.push(f)}
-function rlMaybe(){if(RL_PAUSE||!RLQ.length||li!=="run")return;rlOpen(RLQ[0])}
+function rlById(id){for(var i=0;i<RL_ALL.length;i++)if(RL_ALL[i].id===id)return RL_ALL[i];return null}
+/* 추천 점수: 선호 방향 일치 > 미보유 새 효과 > 중첩 여유 > 풀 유물 우선. 균형은 가장 적게 보유한 방향을 우선. 수동 화면 배지와 자동 선택이 같은 함수를 써서 결과가 항상 일치 */
+function rlRecommend(ch){
+  rlInit();
+  var pref=it.relics.pref,dirOwned={"공격":0,"생존":0,"배치":0};
+  RL_POOL.forEach(function(r){dirOwned[r.dir]+=rlCount(r.id)});
+  var best=-1,bestScore=-1,bestWhy="";
+  ch.forEach(function(r,ix){
+    var s=0,whys=[];
+    if(pref==="균형"){
+      var mn=Math.min(dirOwned["공격"],dirOwned["생존"],dirOwned["배치"]);
+      if(r.dir!=="공통"&&dirOwned[r.dir]===mn){s+=100;whys.push("'"+r.dir+"' 유물이 가장 적어 균형 성장에 유리")}
+    }else if(r.dir===pref){s+=100;whys.push("선호 방향 '"+pref+"' 일치")}
+    if(rlCount(r.id)===0){s+=20;whys.push("미보유 — 새 효과")}
+    else if(r.max<99&&rlCount(r.id)<r.max){s+=10;whys.push("보유 "+rlCount(r.id)+"/"+r.max+" · 중첩 시 합산")}
+    if(RL_FALL.indexOf(r)<0)s+=5;
+    if(s>bestScore){bestScore=s;best=ix;bestWhy=whys.length?whys.join(" · "):"이번 선택지에서 가장 무난한 선택"}
+  });
+  if(pref!=="균형"&&bestWhy.indexOf("선호 방향")<0)bestWhy="이번 선택지에 '"+pref+"' 유물이 없어 차선 · "+bestWhy;
+  return {ix:best,why:bestWhy};
+}
+/* 수령 적용 공통 경로 (수동 확인·자동 선택이 같은 함수를 지나감) */
+function rlGain(f,r){
+  it.relics.claimed[f]=true;
+  it.relics.owned[r.id]=rlCount(r.id)+1;
+  if(r.goldNow)it.gold+=r.goldNow;
+  rlApplyCaps();
+  if(Xe){Xe.mods=Do(it);var nm=sa(it);if(nm>Xe.maxHp)Xe.hp+=nm-Xe.maxHp;Xe.maxHp=nm;if(Xe.hp>nm)Xe.hp=nm}
+}
+/* 자동 선택: 전투를 멈추지 않고(RL_PAUSE를 켜지 않음) 대기 중인 보상을 모두 추천 규칙으로 수령하고 결과를 알림 */
+function rlAuto(){
+  var picks=[];
+  while(RLQ.length){
+    var f=RLQ.shift(),ch=rlChoices(),rec=rlRecommend(ch),r=ch[rec.ix];
+    rlGain(f,r);
+    picks.push({f:f,r:r,why:rec.why});
+  }
+  if(!picks.length)return;
+  picks.forEach(function(p){it.relics.autoLog.push({f:p.f,id:p.r.id});if(it.relics.autoLog.length>5)it.relics.autoLog.shift()});
+  var msg=picks.length===1
+    ? "🏺 유물 자동 선택 · "+picks[0].r.icon+" "+picks[0].r.name+" — "+picks[0].why
+    : "🏺 유물 자동 선택 ×"+picks.length+" · "+picks.map(function(p){return p.r.icon+" "+p.r.name}).join(", ");
+  ae.levelup();
+  rn(msg,4500);
+  pa();
+}
+function rlMaybe(){if(RL_PAUSE||!RLQ.length||li!=="run")return;if(it.relics&&it.relics.mode==="auto")rlAuto();else rlOpen(RLQ[0])}
 var rlE4=E4;
 E4=function(o,t,e,n,i){
   var r=rlE4.apply(this,arguments);
@@ -4819,13 +4865,15 @@ function rlChoices(){
 }
 function rlOpen(f){
   RL_PAUSE=true;RL_SEL=null;
-  var ch=rlChoices();
+  var ch=rlChoices(),rec=rlRecommend(ch);
   var h='<div class="rlbox"><h3>🏺 지하 '+(f-1)+'층 보스 격파!</h3><div class="rlsub">유물 하나를 선택하세요 · 영구 적용 · 선택이 성장 방향을 정합니다</div><div class="rlcards">';
   ch.forEach(function(r,ix){
     var c=rlCount(r.id);
-    h+='<div class="rlc" data-ix="'+ix+'"><div class="ri">'+r.icon+'</div><div class="rn2">'+r.name+'</div><div class="rd">'+r.desc+'</div><div><span class="rt '+RL_DIRC[r.dir]+'">'+r.dir+'</span></div>'+(c?'<div class="rst">보유 '+c+'/'+(r.max>=99?"∞":r.max)+' · 중첩 시 합산</div>':'')+'</div>';
+    h+='<div class="rlc'+(ix===rec.ix?' rec':'')+'" data-ix="'+ix+'">'+(ix===rec.ix?'<div class="rlrec">⭐ 추천</div>':'')+'<div class="ri">'+r.icon+'</div><div class="rn2">'+r.name+'</div><div class="rd">'+r.desc+'</div><div><span class="rt '+RL_DIRC[r.dir]+'">'+r.dir+'</span></div>'+(c?'<div class="rst">보유 '+c+'/'+(r.max>=99?"∞":r.max)+' · 중첩 시 합산</div>':'')+'</div>';
   });
-  h+='</div><div class="rlbtns"><button class="btn pri" id="rlOk" disabled>유물을 고르세요</button></div></div>';
+  h+='</div><div class="rlwhy">⭐ <b>'+ch[rec.ix].icon+' '+ch[rec.ix].name+'</b> 추천 — '+rec.why+'</div>';
+  h+='<div class="rlbtns"><button class="btn pri" id="rlOk" disabled>유물을 고르세요</button></div>';
+  h+='<div class="rlhint">선택 방식: 직접 고르기 · 거점의 유물 설정에서 선호 방향을 정한 자동 선택으로 바꿀 수 있습니다</div></div>';
   rlmEl.innerHTML=h;rlmEl.classList.add("on");
   var cards=rlmEl.querySelectorAll(".rlc");
   cards.forEach(function(el){
@@ -4842,11 +4890,7 @@ function rlOpen(f){
 function rlConfirm(){
   if(!RL_SEL||!RLQ.length)return;
   var f=RLQ.shift(),r=RL_SEL;RL_SEL=null;
-  it.relics.claimed[f]=true;
-  it.relics.owned[r.id]=rlCount(r.id)+1;
-  if(r.goldNow)it.gold+=r.goldNow;
-  rlApplyCaps();
-  if(Xe){Xe.mods=Do(it);var nm=sa(it);if(nm>Xe.maxHp)Xe.hp+=nm-Xe.maxHp;Xe.maxHp=nm;if(Xe.hp>nm)Xe.hp=nm}
+  rlGain(f,r);
   rlmEl.classList.remove("on");rlmEl.innerHTML="";
   RL_PAUSE=false;
   ae.levelup();
@@ -4863,13 +4907,27 @@ function rlHub(){
   var owned=RL_ALL.filter(function(r){return rlCount(r.id)>0});
   var M=6;while(it.relics.claimed[M])M+=5;
   var h='<h2 style="margin-top:12px">유물 <small>5층마다 보스를 쓰러뜨리면 3개 중 하나를 고릅니다 · 영구 적용</small></h2>';
+  var mode=it.relics.mode,pref=it.relics.pref;
+  h+='<div class="rlset"><div class="rlrow"><span class="rllab">선택 방식</span><span class="rlseg" id="rlMode">'
+    +'<button data-v="manual" class="'+(mode==="manual"?"on":"")+'">직접 고르기</button>'
+    +'<button data-v="auto" class="'+(mode==="auto"?"on":"")+'">자동 선택</button></span></div>'
+    +'<div class="rlrow"><span class="rllab">선호 방향</span><span class="rlseg" id="rlPref">'
+    +["균형","공격","생존","배치"].map(function(d){return '<button data-v="'+d+'" class="'+(pref===d?"on":"")+'">'+d+'</button>'}).join("")
+    +'</span></div>'
+    +'<div class="rlwhy2">'+(mode==="auto"
+      ? "보상이 뜨면 멈추지 않고 '"+pref+"' 방향 추천 유물을 자동으로 고르고, 고른 결과를 알림으로 보여 줍니다"
+      : "보상마다 멈추고 직접 고릅니다 · 추천 유물과 추천 이유를 함께 보여 줍니다")+'</div></div>';
   if(owned.length){
     h+='<div id="rlown">';
     owned.forEach(function(r){var c=rlCount(r.id);h+='<span class="rlchip">'+r.icon+' '+r.name+(c>1?' ×'+c:'')+'<i>'+r.desc+'</i></span>'});
     h+='</div>';
   }else h+='<div class="card" style="color:var(--dim);font-size:12.5px">아직 얻은 유물이 없습니다. 지하 5층 보스를 쓰러뜨리면 첫 유물을 고를 수 있습니다.</div>';
+  var alog=it.relics.autoLog||[];
+  if(alog.length)h+='<div class="legend" style="margin-top:4px">최근 자동 선택: '+alog.slice().reverse().map(function(e){var r=rlById(e.id);return r?r.icon+" "+r.name+" ("+(e.f-1)+"층 보스)":""}).join(" · ")+'</div>';
   h+='<div class="legend" style="margin-top:2px">다음 유물: 지하 '+(M-1)+'층 보스 격파 시 (최고 기록 지하 '+it.best+'층) · 이정표는 층별 1회 · 이미 돌파한 층의 유물은 다음 런 시작 때 소급 지급</div>';
   t.insertAdjacentHTML("beforeend",h);
+  var mEl=Et("rlMode");if(mEl)mEl.querySelectorAll("button").forEach(function(b){b.onclick=function(){rlInit();it.relics.mode=b.dataset.v;pa()}});
+  var pEl=Et("rlPref");if(pEl)pEl.querySelectorAll("button").forEach(function(b){b.onclick=function(){rlInit();it.relics.pref=b.dataset.v;pa()}});
 }
 /* 검증용 노출 */
 (function rlEx(){
@@ -4878,6 +4936,8 @@ function rlHub(){
     window.__game.modsNow=function(){return Do(it)};
     window.__game.maxHpNow=function(){return sa(it)};
     window.__game.rlQueue=function(){return RLQ.slice()};
+    window.__game.rlPrefs=function(){rlInit();return {mode:it.relics.mode,pref:it.relics.pref,autoLog:(it.relics.autoLog||[]).slice()}};
+    window.__game.rlRecommend=rlRecommend;
   }else setTimeout(rlEx,150);
 })();
 
