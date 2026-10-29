@@ -76,6 +76,23 @@ h2 small{font-weight:400;color:var(--dim);font-size:11.5px;margin-left:6px}
 .pc.sel{outline:2px solid #fff;outline-offset:-2px}
 .pc.mrg{outline:3px solid var(--grn);outline-offset:-3px;animation:pulse .5s infinite alternate}
 @keyframes pulse{to{filter:brightness(1.5)}}
+.pc.fz{border-color:#f2c66b;box-shadow:inset 0 0 0 1px rgba(242,198,107,.55),0 0 7px rgba(242,198,107,.4)}
+.pc.fzp{outline:3px solid #b98bff;outline-offset:-3px;animation:pulse .6s infinite alternate}
+.pc.fzfx{animation:fzfx 1s ease-out;z-index:3}
+@keyframes fzfx{0%{filter:brightness(3) saturate(0);transform:scale(.5)}35%{filter:brightness(2.2);transform:scale(1.25);box-shadow:0 0 22px #ffd24a}100%{filter:none;transform:scale(1)}}
+#fzm{position:fixed;inset:0;z-index:70;background:rgba(6,4,12,.84);display:none;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(3px)}
+#fzm.on{display:flex}
+.fzbox{width:min(100%,470px);max-height:94dvh;overflow-y:auto;background:linear-gradient(#1d1730,#15111f);border:1px solid var(--gold);border-radius:14px;padding:12px 12px 14px}
+.fzbox h3{margin:0 0 8px;color:var(--gold);font-size:17px}
+.fzrow{display:flex;align-items:center;justify-content:center;gap:5px}
+.fzc{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 3px;text-align:center;font-size:12px}
+.fzc img{width:56px;height:56px;object-fit:contain}
+.fzc.res{border-color:var(--gold);background:#2a2110}
+.fzop{font-size:18px;color:var(--gold);font-weight:900}
+.fzs{font-size:12px;line-height:1.55;margin-top:8px;background:rgba(0,0,0,.45);border-radius:8px;padding:6px 8px}
+.fzs .dim{color:var(--dim)}
+.fzshape{display:inline-grid;gap:2px;margin-top:4px}.fzshape i{width:12px;height:12px;border-radius:3px;background:#c9a34a;display:block}
+.fzbtns{display:flex;gap:8px;margin-top:10px}.fzbtns .btn{flex:1;padding:11px 8px;font-size:14px}
 .pc.drag{opacity:.25}
 .ico{position:absolute;pointer-events:none;object-fit:contain;filter:drop-shadow(0 2px 2px #000)}
 .lvb{position:absolute;pointer-events:none;font-size:10px;font-weight:900;padding:0 4px;border-radius:6px;background:#000c;color:#fff;border:1px solid #fff5;line-height:14px}
@@ -130,7 +147,7 @@ body.hubm #panel{min-height:100dvh}
    <div id="boardwrap"><div class="grid" id="board"><div class="items" id="bitems"></div></div></div>
    <div id="sidebox">
     <div class="card"><div class="t" id="sGold">-</div><div id="sHero" style="color:var(--dim)"></div></div>
-    <div class="row" style="margin-top:0"><button class="btn sm" id="bRot">회전</button><button class="btn sm" id="bSell">판매</button><button class="btn sm" id="bAuto">자동 정리</button></div>
+    <div class="row" style="margin-top:0"><button class="btn sm" id="bRot">회전</button><button class="btn sm" id="bFuse">융합</button><button class="btn sm" id="bSell">판매</button><button class="btn sm" id="bAuto">자동 정리</button></div>
     <div class="legend"><span style="color:#e88">■</span> 무기 <span style="color:#79b8f2">■</span> 방어 <span style="color:#7fd89d">■</span> 회복</div>
    </div>
   </div>
@@ -141,6 +158,6 @@ body.hubm #panel{min-height:100dvh}
  </section>
 </div>
 <div id="ghost"></div><div id="toast"></div>
-<script src="game.js?v=2"></script>
+<script src="game.js?v=3"></script>
 </body>
 </html>
