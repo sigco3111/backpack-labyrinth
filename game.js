@@ -5590,7 +5590,6 @@ E4=function(o,t,e,n,i){
     window.__game.fxInfo=function(){var b=Et("banner"),s=b?String(b.className||""):"";if(b&&b.classList){if(b.classList.contains("bosswin"))s+=" bosswin";else if(b.classList.contains("boss"))s+=" boss"}return {layer:!!fxLayer,parts:fxLayer?fxLayer.children.length:0,banner:s}};
   }else setTimeout(fxEx,150);
 })();
-L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});
 /* ===== 적 다양성 2차 (R9): 신규 고유 외형 6종 — Quaternius "Cute Monsters" CC0 (https://quaternius.com/packs/cutemonsters.html, 사용자 에셋 카탈로그 sigco3111/game-asset-catalog v4.0 미러, LICENSE-SOURCE.txt에 공식 페이지 CC0 근거 기록). gltf→GLB 자체 변환 후 임베드. 8층 이상 심층 티어 + 보스 3종 외형 교체 + 고유 행동 6종. v27 스코프와 독립(자체 LCG/적용 함수 사용). 저장 스키마 변경 없음 ===== */
 var EN_DEEP={
   ghost:{name:"던전 유령",model:"mon_ghost",scale:.95,hp:.9,dmg:.9,int:2,sp:"phase"},
@@ -5651,35 +5650,44 @@ la.prototype.enemyHit=function(){
   if(sp==="rage"){e.rageN=(e.rageN||0)+1;var bd=e.baseDmg||e.dmg;e.dmg=Math.min(Math.round(e.dmg*1.15*10)/10,Math.round(bd*3*10)/10);if(e.rageN<=3)this.say(e.name+"의 분노가 커진다!")}
   else if(sp==="fear"&&enRnd2()<.4){this.sweepRest=(this.sweepRest||0)+.6;this.say(e.name+"의 공포에 손이 굳는다!")}
 };
-/* 신규 모델: 크기 정규화(기준 skel_warrior 높이 2.5905, 오프라인 계측값) + Quaternius 애니메이션명을 게임 액션명으로 매핑 */
+/* 모델 준비(첫 스폰 직전 1회): 애니메이션명 매핑 + 크기 정규화 + 언릿 재질을 조명 재질로 교체 (이 게임 렌더러는 MeshBasicMaterial 렌더에서 크래시) */
 try{
-  var enLoadAll=ee.loadAll.bind(ee);
-  ee.loadAll=function(){
-    var args=arguments;
-    return enLoadAll.apply(null,args).then(function(r){
-      try{
-        var EN_ANIM={Idle:"Idle_Combat",Flying:"Idle_Combat",Bite_Front:"1H_Melee_Attack_Chop",HitRecieve:"Hit_A",Death:"Death_A"};
-        for(var k in ee.models){
-          if(k.indexOf("mon_")!==0)continue;
-          var an=ee.models[k].animations,have={},q,mp;
+  var enPrepDone={};
+  var enSet3=ee.setEnemy.bind(ee);
+  ee.setEnemy=function(m,sc,b){
+    try{
+      if(m&&m.indexOf("mon_")===0&&!enPrepDone[m]){
+        enPrepDone[m]=1;
+        var M=ee.models[m];
+        if(M){
+          var EN_ANIM={Idle:"Idle_Combat",Flying:"Idle_Combat",Bite_Front:"1H_Melee_Attack_Chop",HitRecieve:"Hit_A",Death:"Death_A"};
+          var an=M.animations,have={},q,mp;
           for(q=0;q<an.length;q++)have[an[q].name]=1;
           for(q=0;q<an.length;q++){mp=EN_ANIM[an[q].name];if(mp&&!have[mp]){an[q].name=mp;have[mp]=1}}
-          var bk=EN_BAKE[k];if(!bk)continue;
-          var ch=ee.models[k].scene.children;
-          for(q=0;q<ch.length;q++){ch[q].scale.multiplyScalar(bk[0]);ch[q].position.multiplyScalar(bk[0]);ch[q].position.y-=bk[1]}
+          var bk=EN_BAKE[m];
+          if(bk){var ch=M.scene.children;for(q=0;q<ch.length;q++){ch[q].scale.multiplyScalar(bk[0]);ch[q].position.multiplyScalar(bk[0]);ch[q].position.y-=bk[1]}}
+          var LM=null;
+          ee.models.skel_warrior.scene.traverse(function(r){if(!LM&&r.isMesh&&r.material&&!r.material.isMeshBasicMaterial)LM=r.material.constructor});
+          if(LM)M.scene.traverse(function(r){
+            if(r.isMesh&&r.material&&r.material.isMeshBasicMaterial){
+              var om=r.material;
+              r.material=new LM({map:om.map||null,color:om.color?om.color.clone():16777215,transparent:!!om.transparent,opacity:om.opacity==null?1:om.opacity,side:om.side})
+            }
+          });
         }
-      }catch(_){}
-      return r;
-    })
+      }
+    }catch(_){}
+    enSet3(m,sc,b);
   };
 }catch(_){}
 (function enEx2(){
   if(window.__game){
     window.__game.enDeep=function(){return Object.keys(EN_DEEP)};
-    window.__game.ver="v29-r9";
+    window.__game.ver="v30-r9";
   }else setTimeout(enEx2,150);
 })();
-})();
+
+L4().then(function(){if(window.__game){window.__game.arrangeAdj=TrAdj;window.__game.mergeL=ArL;window.__game.adjTotal=function(){return adjTotalW(it.board)};window.__game.adjSnap=adjSnap}});})();
 /*! Bundled license information:
 
 three/build/three.core.js:
@@ -5690,4 +5698,3 @@ three/build/three.module.js:
    * SPDX-License-Identifier: MIT
    *)
 */
-
