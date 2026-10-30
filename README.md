@@ -8,6 +8,21 @@
 
 > 이 게임은 Steam의 *Dungeonbound* (louidev)에서 **규칙의 영감**만 받은 오리지널 구현입니다. 원작의 그림, 코드, 이름, 화면 구성은 사용하지 않았습니다.
 
+
+## 스크린샷
+
+> 실제 게임을 구동해 캡처한 화면입니다. 안내를 위해 중반 진행을 재현한 합성 플레이 상태(테스트 데이터)에서 촬영했습니다.
+
+| ![자동 전투](docs/screenshots/combat.png) | ![복도 탐험](docs/screenshots/corridor.png) |
+|:---:|:---:|
+| 1인칭 복도에서 펼쳐지는 자동 전투 - 배낭 격자를 훑으며 아이템이 발동합니다 | 층을 내려가며 적과 보물 상자를 만납니다 |
+| ![보스 격파](docs/screenshots/boss-victory.png) | ![유물 선택](docs/screenshots/relic-choice.png) |
+| 5층마다 등장하는 보스를 쓰러뜨리는 순간 | 보스 격파 후 유물 3개 중 1개를 고릅니다 (영구 성장) |
+| ![갈림길](docs/screenshots/fork-paths.png) | ![배낭과 보관함](docs/screenshots/backpack-inventory.png) |
+| 보스 층 앞 갈림길 - 전투 · 보물 · 휴식 중 길을 고릅니다 | 배낭 격자 배치, 인접 보너스(금색 테두리), 골드로 잠긴 칸 해금 |
+| ![융합 미리보기](docs/screenshots/fusion-preview.png) | ![거점](docs/screenshots/hub-upgrades.png) |
+| 융합 대장간 - 실행 전에 결과 장비와 전후 비교를 확인합니다 | 거점 - 영구 강화, 유물 설정, 누적 전적과 업적 |
+
 ## 플레이 방법
 
 1. 거점에서 **내려가기**를 누르면 복도를 따라 내려가며 해골을 만납니다.
